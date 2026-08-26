@@ -1,0 +1,375 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import {
+    fetchRecipes,
+    fetchFavorites,
+    toggleFavorite,
+    fetchMealPlan,
+    fetchCategoryOptions,
+    deleteRecipe,
+    type Recipe,
+  } from "$lib/api";
+  import { goto } from '$app/navigation';
+
+  let recipes: Recipe[] = [];
+  let selectedRecipe: Recipe | null = null;
+  let favorites: Set<string> = new Set();
+  let mealPlan: any = null;
+
+  let isLoading = true;
+  let error = "";
+  let userId = "";
+
+  let searchTerm = "";
+  let selectedCategory = "all";
+  let selectedSubcategory = "all";
+  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+
+  let recipeListEl: any = null;
+
+  let recipeDetailEl: any = null;
+
+  $: categoryList = [
+    { id: "all", name: "All categories" },
+    ...Array.from(
+      new Set(
+        categoryOptions.length
+          ? categoryOptions
+              .filter((item) => !item.parent_id)
+              .map((item) => JSON.stringify({ id: item.id, name: item.name }))
+          : recipes.map((r) => JSON.stringify({ id: r.category, name: r.category })).filter(Boolean)
+      )
+    )
+      .map((value) => JSON.parse(value))
+      .filter((item) => item.id || item.name)
+  ];
+
+  $: selectedCategoryRow =
+    selectedCategory === "all"
+      ? null
+      : categoryOptions.find((item) => item.id === selectedCategory) ?? null;
+
+  $: selectedSubcategoryRow =
+    selectedSubcategory === "all"
+      ? null
+      : categoryOptions.find((item) => item.id === selectedSubcategory) ?? null;
+
+  $: filteredSubcategories =
+    selectedCategory === "all"
+      ? [
+          { id: "all", name: "All subcategories" },
+          ...Array.from(
+            new Set(
+              categoryOptions.length
+                ? categoryOptions
+                    .filter((item) => item.parent_id)
+                    .map((item) => JSON.stringify({ id: item.id, name: item.name }))
+                : recipes.map((r) => JSON.stringify({ id: r.subcategory, name: r.subcategory })).filter(Boolean)
+            )
+          )
+            .map((value) => JSON.parse(value))
+            .filter((item) => item.id || item.name)
+        ]
+      : [
+          { id: "all", name: "All subcategories" },
+          ...Array.from(
+            new Set(
+              categoryOptions.length
+                ? categoryOptions
+                    .filter((item) => item.parent_id === selectedCategoryRow?.id)
+                    .map((item) => JSON.stringify({ id: item.id, name: item.name }))
+                : recipes
+                    .filter((r) => r.category === selectedCategory || (selectedCategoryRow && r.category === selectedCategoryRow.name))
+                    .map((r) => JSON.stringify({ id: r.subcategory, name: r.subcategory }))
+                    .filter(Boolean)
+            )
+          )
+            .map((value) => JSON.parse(value))
+            .filter((item) => item.id || item.name)
+        ];
+
+  $: subcategoryDisabled = selectedCategory === "all";
+
+  $: filteredRecipes = recipes.filter((recipe) => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      !normalizedSearch ||
+      [
+        recipe.title,
+        recipe.summary,
+        recipe.description,
+        recipe.category,
+        recipe.subcategory,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedSearch);
+
+    const matchesCategory =
+      selectedCategory === "all" ||
+      recipe.category === selectedCategory ||
+      (selectedCategoryRow && recipe.category === selectedCategoryRow.name);
+
+    const matchesSubcategory =
+      selectedSubcategory === "all" ||
+      recipe.subcategory === selectedSubcategory ||
+      (selectedSubcategoryRow && recipe.subcategory === selectedSubcategoryRow.name);
+
+    return matchesSearch && matchesCategory && matchesSubcategory;
+  });
+
+  $: if (recipeListEl) {
+    recipeListEl.recipes = filteredRecipes;
+    recipeListEl.layout = "grid";
+  }
+
+  $: if (recipeDetailEl) {
+    recipeDetailEl.recipe = selectedRecipe ?? undefined;
+  }
+
+  $: if (filteredRecipes.length) {
+    const selectedId = selectedRecipe?.id ?? null;
+
+    if (!selectedId || !filteredRecipes.some((r) => r.id === selectedId)) {
+      selectedRecipe = filteredRecipes[0];
+    }
+  } else {
+    selectedRecipe = null;
+  }
+
+  function genUserId() {
+    const existing = localStorage.getItem("rp_user");
+
+    if (existing) {
+      return existing;
+    }
+
+    const id = "user_" + Math.random().toString(36).slice(2, 9);
+    localStorage.setItem("rp_user", id);
+    return id;
+  }
+
+  const handleOpen = (event: Event) => {
+    const id = (event as CustomEvent<string>).detail;
+    const match = filteredRecipes.find((r) => r.id === id);
+
+    if (match) {
+      selectedRecipe = match;
+    }
+  };
+
+  const handleFavorite = async (event: Event) => {
+    const id = (event as CustomEvent<string>).detail;
+
+    try {
+      await toggleFavorite(userId, id);
+
+      const nextFavorites = new Set(favorites);
+      if (nextFavorites.has(id)) {
+        nextFavorites.delete(id);
+      } else {
+        nextFavorites.add(id);
+      }
+
+      favorites = nextFavorites;
+      localStorage.setItem("rp_favs", JSON.stringify([...favorites]));
+    } catch (e) {
+      console.error("[Page] Favorite error:", e);
+    }
+  };
+
+  const handleEdit = (event: Event) => {
+    const id = (event as CustomEvent<string>).detail;
+    if (!id) return;
+    goto(`/my-recipes/edit/${id}`);
+  };
+
+  const handleDelete = async (event: Event) => {
+    const id = (event as CustomEvent<string>).detail;
+    if (!id) return;
+
+    try {
+      await deleteRecipe(id);
+      await loadAll();
+    } catch (e) {
+      console.error("[Page] Delete error:", e);
+    }
+  };
+
+  async function loadAll() {
+    try {
+      isLoading = true;
+      error = "";
+
+      const fetchedCategories = await fetchCategoryOptions();
+      categoryOptions = fetchedCategories;
+
+      recipes = await fetchRecipes();
+
+      if (recipes.length) {
+        selectedRecipe = recipes[0];
+      }
+
+      const favs = await fetchFavorites(userId);
+      favorites = new Set(favs);
+
+      mealPlan = await fetchMealPlan(userId);
+    } catch (e) {
+      console.error("[Page] loadAll() error:", e);
+      error = e instanceof Error ? e.message : "Failed to load application data";
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  onMount(() => {
+    userId = genUserId();
+    loadAll();
+  });
+</script>
+
+<svelte:head>
+  <title>Recipe Planner Consumer</title>
+</svelte:head>
+
+<section class="page">
+  <h1>Recipe Planner</h1>
+
+  {#if isLoading}
+    <p class="loading">Loading recipes...</p>
+  {:else if error}
+    <div class="error-box">
+      <p>
+        <strong>❌ Error:</strong>
+        {error}
+      </p>
+
+      <p>
+        <strong>Troubleshooting:</strong>
+      </p>
+
+      <ul>
+        <li>Open browser DevTools (F12) and check the Console tab</li>
+        <li>Verify Supabase tables exist</li>
+        <li>Check Supabase RLS policies</li>
+        <li>Ensure Supabase credentials are correct</li>
+      </ul>
+    </div>
+  {:else}
+    <p>Favorites: {favorites.size}</p>
+
+    <div class="filters">
+      <label>
+        <span>Search</span>
+        <input bind:value={searchTerm} type="search" placeholder="Search recipes" />
+      </label>
+
+      <label>
+        <span>Category</span>
+        <select bind:value={selectedCategory} on:change={() => (selectedSubcategory = "all")}>
+          {#each categoryList as category}
+            <option value={category.id}>{category.name}</option>
+          {/each}
+        </select>
+      </label>
+
+      <label>
+        <span>Subcategory</span>
+        <select bind:value={selectedSubcategory} disabled={subcategoryDisabled}>
+          {#each filteredSubcategories as subcategory}
+            <option value={subcategory.id}>{subcategory.name}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+
+    <recipe-list
+      bind:this={recipeListEl}
+      on:open={handleOpen}
+      on:favorite={handleFavorite}
+      on:edit={handleEdit}
+      on:delete={handleDelete}
+    ></recipe-list>
+  {/if}
+</section>
+
+<style>
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    font-family: Arial, sans-serif;
+    color: #1f2937;
+  }
+
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 1.5rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+
+  .filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .filters input,
+  .filters select {
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #fff;
+  }
+
+  .filters select:disabled {
+    background: #f3f4f6;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .panel {
+    margin-top: 24px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .loading {
+    padding: 20px;
+    text-align: center;
+    color: #6b7280;
+  }
+
+  .error-box {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    color: #991b1b;
+  }
+
+  .error-box p {
+    margin: 8px 0;
+  }
+
+  .error-box ul {
+    margin: 8px 0 8px 20px;
+    padding: 0;
+  }
+
+  .error-box li {
+    margin: 4px 0;
+  }
+</style>
