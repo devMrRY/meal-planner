@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { createRecipe, fetchCategoryOptions, type Recipe } from '$lib/api';
 
-  let recipeFormEl: (HTMLElement & { recipe?: Recipe; categories?: Array<{ id: string; name: string; parent_id: string | null }> }) | null = null;
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+  let recipeFormEl = $state<(HTMLElement & { recipe?: Recipe; categories?: Array<{ id: string; name: string; parent_id: string | null }> }) | null>(null);
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
 
   const handleSave = async (event: Event) => {
     const data = (event as CustomEvent<any>).detail;
@@ -22,9 +22,11 @@
     categoryOptions = await fetchCategoryOptions();
   });
 
-  $: if (recipeFormEl) {
-    recipeFormEl.categories = categoryOptions;
-  }
+  $effect(() => {
+    if (recipeFormEl) {
+      recipeFormEl.categories = categoryOptions;
+    }
+  });
 </script>
 
 <section class="route-page">
@@ -34,7 +36,7 @@
   </div>
 
   <div class="form-panel">
-    <recipe-form bind:this={recipeFormEl} on:save={handleSave} categories={categoryOptions}></recipe-form>
+    <recipe-form bind:this={recipeFormEl} onsave={handleSave} categories={categoryOptions}></recipe-form>
   </div>
 </section>
 

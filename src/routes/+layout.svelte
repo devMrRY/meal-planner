@@ -3,6 +3,8 @@
   import { onMount } from 'svelte';
   import { defineCustomElements } from '@recipe-planner/recipe-components/loader';
 
+  let { children } = $props();
+
   const navItems = [
     { label: 'All Recipes', href: '/' },
     { label: 'Favourites', href: '/favourites' },
@@ -26,7 +28,7 @@
   </nav>
 
   <main class="page-content">
-    <slot />
+    {@render children()}
   </main>
 </div>
 

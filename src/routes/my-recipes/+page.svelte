@@ -3,19 +3,14 @@
   import { goto } from '$app/navigation';
   import { deleteRecipe, fetchCategoryOptions, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
 
-  let userId = '';
-  let selectedRecipe: Recipe | null = null;
-  let userRecipes: Recipe[] = [];
-  let favoriteIds: string[] = [];
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
-  let recipeListEl: any = null;
+  let userId = $state('');
+  let selectedRecipe = $state<Recipe | null>(null);
+  let userRecipes = $state<Recipe[]>([]);
+  let favoriteIds = $state<string[]>([]);
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
+  let recipeListEl = $state<any>(null);
 
   function genUserId() {
-    // const existing = localStorage.getItem('rp_user');
-    // if (existing) return existing;
-
-    // const id = 'user_' + Math.random().toString(36).slice(2, 9);
-    // localStorage.setItem('rp_user', id);
     return 'user';
   }
 
@@ -95,10 +90,8 @@
     categoryOptions = await fetchCategoryOptions();
     favoriteIds = await fetchFavorites(userId);
     await reloadUserRecipes();
-    console.log('[MyRecipesPage] userId =', userId);
   });
 
-  // No embedded form on this page: creation/editing handled on separate routes
   function setRecipeListProps(el: any) {
     try {
       el.recipes = userRecipes;
@@ -109,15 +102,17 @@
     }
   }
 
-  $: if (recipeListEl && userRecipes.length) setRecipeListProps(recipeListEl);
-
-  $: console.log(recipeListEl, userRecipes);
+  $effect(() => {
+    if (recipeListEl && userRecipes.length) {
+      setRecipeListProps(recipeListEl);
+    }
+  });
 </script>
 
 <section class="route-page">
   <div class="page-header">
     <h1>My Recipes</h1>
-    <button type="button" class="new-button" on:click={handleNew}>
+    <button type="button" class="new-button" onclick={handleNew}>
       + New recipe
     </button>
   </div>
@@ -126,10 +121,10 @@
     <recipe-list
       bind:this={recipeListEl}
       layout="grid"
-      on:open={handleOpen}
-      on:favorite={handleFavorite}
-      on:edit={handleRecipeEdit}
-      on:delete={handleRecipeDelete}
+      onopen={handleOpen}
+      onfavorite={handleFavorite}
+      onedit={handleRecipeEdit}
+      ondelete={handleRecipeDelete}
     ></recipe-list>
   </div>
 </section>

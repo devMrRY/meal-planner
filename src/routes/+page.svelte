@@ -11,23 +11,22 @@
   } from "$lib/api";
   import { goto } from '$app/navigation';
 
-  let recipes: Recipe[] = [];
-  let selectedRecipe: Recipe | null = null;
-  let favorites: Set<string> = new Set();
-  let mealPlan: any = null;
+  let recipes = $state<Recipe[]>([]);
+  let selectedRecipe = $state<Recipe | null>(null);
+  let favorites = $state<Set<string>>(new Set());
+  let mealPlan = $state<any>(null);
 
-  let isLoading = true;
-  let error = "";
-  let userId = "";
+  let isLoading = $state(true);
+  let error = $state("");
+  let userId = $state("");
 
-  let searchTerm = "";
-  let selectedCategory = "all";
-  let selectedSubcategory = "all";
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+  let searchTerm = $state("");
+  let selectedCategory = $state("all");
+  let selectedSubcategory = $state("all");
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
 
-  let recipeListEl: any = null;
-
-  let recipeDetailEl: any = null;
+  let recipeListEl = $state<any>(null);
+  let recipeDetailEl = $state<any>(null);
 
   function categoryIdOf(value: any): string {
     if (!value) return '';
@@ -43,7 +42,7 @@
     return String(value).trim();
   }
 
-  $: categoryList = [
+  const categoryList = $derived.by(() => [
     { id: "all", name: "All categories" },
     ...Array.from(
       new Set(
@@ -56,19 +55,21 @@
     )
       .map((value) => JSON.parse(value))
       .filter((item) => item.id || item.name)
-  ];
+  ]);
 
-  $: selectedCategoryRow =
+  const selectedCategoryRow = $derived.by(() =>
     selectedCategory === "all"
       ? null
-      : categoryOptions.find((item) => item.id === selectedCategory) ?? null;
+      : categoryOptions.find((item) => item.id === selectedCategory) ?? null
+  );
 
-  $: selectedSubcategoryRow =
+  const selectedSubcategoryRow = $derived.by(() =>
     selectedSubcategory === "all"
       ? null
-      : categoryOptions.find((item) => item.id === selectedSubcategory) ?? null;
+      : categoryOptions.find((item) => item.id === selectedSubcategory) ?? null
+  );
 
-  $: filteredSubcategories =
+  const filteredSubcategories = $derived.by(() =>
     selectedCategory === "all"
       ? [
           { id: "all", name: "All subcategories" },
@@ -100,43 +101,51 @@
           )
             .map((value) => JSON.parse(value))
             .filter((item) => item.id || item.name)
-        ];
+        ]
+  );
 
-  $: subcategoryDisabled = selectedCategory === "all";
+  const subcategoryDisabled = $derived(selectedCategory === "all");
 
-  $: filteredRecipes = recipes.filter((recipe) => {
-    const matchesCategory =
-      selectedCategory === "all" ||
-      categoryIdOf(recipe.category_id) === selectedCategory ||
-      (selectedCategoryRow && categoryNameOf(recipe.category?.name) === selectedCategoryRow.name);
+  const filteredRecipes = $derived.by(() =>
+    recipes.filter((recipe) => {
+      const matchesCategory =
+        selectedCategory === "all" ||
+        categoryIdOf(recipe.category_id) === selectedCategory ||
+        (selectedCategoryRow && categoryNameOf(recipe.category?.name) === selectedCategoryRow.name);
 
-    const matchesSubcategory =
-      selectedSubcategory === "all" ||
-      categoryIdOf(recipe.subcategory_id) === selectedSubcategory ||
-      (selectedSubcategoryRow && categoryNameOf(recipe.subcategory?.name) === selectedSubcategoryRow.name);
+      const matchesSubcategory =
+        selectedSubcategory === "all" ||
+        categoryIdOf(recipe.subcategory_id) === selectedSubcategory ||
+        (selectedSubcategoryRow && categoryNameOf(recipe.subcategory?.name) === selectedSubcategoryRow.name);
 
       return matchesCategory && matchesSubcategory;
-  });
+    })
+  );
 
-  $: if (recipeListEl) {
+  $effect(() => {
+    if (!recipeListEl) return;
     recipeListEl.recipes = filteredRecipes;
     recipeListEl.layout = "grid";
     recipeListEl.favoriteIds = [...favorites];
-  }
+  });
 
-  $: if (recipeDetailEl) {
-    recipeDetailEl.recipe = selectedRecipe ?? undefined;
-  }
-
-  $: if (filteredRecipes.length) {
-    const selectedId = selectedRecipe?.id ?? null;
-
-    if (!selectedId || !filteredRecipes.some((r) => r.id === selectedId)) {
-      selectedRecipe = filteredRecipes[0];
+  $effect(() => {
+    if (recipeDetailEl) {
+      recipeDetailEl.recipe = selectedRecipe ?? undefined;
     }
-  } else {
-    selectedRecipe = null;
-  }
+  });
+
+  $effect(() => {
+    if (filteredRecipes.length) {
+      const selectedId = selectedRecipe?.id ?? null;
+
+      if (!selectedId || !filteredRecipes.some((r) => r.id === selectedId)) {
+        selectedRecipe = filteredRecipes[0];
+      }
+    } else {
+      selectedRecipe = null;
+    }
+  });
 
   function genUserId() {
     const existing = localStorage.getItem("rp_user");
@@ -227,7 +236,6 @@
     userId = genUserId();
     loadAll();
   });
-   $: console.log("recipeDetailEl:", filteredRecipes);
 </script>
 
 <svelte:head>
@@ -268,7 +276,7 @@
 
       <label>
         <span>Category</span>
-        <select bind:value={selectedCategory} on:change={() => (selectedSubcategory = "all")}>
+        <select bind:value={selectedCategory} onchange={() => (selectedSubcategory = "all")}>
           {#each categoryList as category}
             <option value={category.id}>{category.name}</option>
           {/each}
@@ -287,10 +295,10 @@
 
     <recipe-list
       bind:this={recipeListEl}
-      on:open={handleOpen}
-      on:favorite={handleFavorite}
-      on:edit={handleEdit}
-      on:delete={handleDelete}
+      onopen={handleOpen}
+      onfavorite={handleFavorite}
+      onedit={handleEdit}
+      ondelete={handleDelete}
     ></recipe-list>
   {/if}
 </section>

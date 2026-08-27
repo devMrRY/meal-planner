@@ -4,11 +4,11 @@
   import { goto } from '$app/navigation';
   import { fetchRecipes, updateRecipe, fetchCategoryOptions, type Recipe } from '$lib/api';
 
-  let recipeFormEl: any = null;
-  let loading = true;
-  let error = '';
-  let recipe: Recipe | null = null;
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+  let recipeFormEl = $state<any>(null);
+  let loading = $state(true);
+  let error = $state('');
+  let recipe = $state<Recipe | null>(null);
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
 
   async function load() {
     loading = true;
@@ -49,7 +49,7 @@
 {:else}
   <section class="page">
     <h1>Edit Recipe</h1>
-    <recipe-form bind:this={recipeFormEl} recipe={recipe} on:save={handleSave} categories={categoryOptions}></recipe-form>
+    <recipe-form bind:this={recipeFormEl} recipe={recipe} onsave={handleSave} categories={categoryOptions}></recipe-form>
   </section>
 {/if}
 

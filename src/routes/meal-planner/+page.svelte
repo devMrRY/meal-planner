@@ -2,11 +2,11 @@
   import { onMount } from 'svelte';
   import { fetchMealPlan, saveMealPlan } from '$lib/api';
 
-  let mealPlan: any = null;
-  let userId = '';
-  let isLoading = true;
+  let mealPlan = $state<any>(null);
+  let userId = $state('');
+  let isLoading = $state(true);
 
-  let mealPlannerEl: (HTMLElement & { plan?: any }) | null = null;
+  let mealPlannerEl = $state<(HTMLElement & { plan?: any }) | null>(null);
 
   function genUserId() {
     const existing = localStorage.getItem('rp_user');
@@ -34,9 +34,11 @@
     isLoading = false;
   });
 
-  $: if (mealPlannerEl) {
-    mealPlannerEl.plan = mealPlan;
-  }
+  $effect(() => {
+    if (mealPlannerEl) {
+      mealPlannerEl.plan = mealPlan;
+    }
+  });
 </script>
 
 <section class="route-page">
@@ -45,7 +47,7 @@
   {#if isLoading}
     <p>Loading meal plan...</p>
   {:else}
-    <meal-planner bind:this={mealPlannerEl} on:planChange={handlePlanChange}></meal-planner>
+    <meal-planner bind:this={mealPlannerEl} onplanchange={handlePlanChange}></meal-planner>
   {/if}
 </section>
 

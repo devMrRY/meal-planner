@@ -3,10 +3,10 @@
   import { onMount } from 'svelte';
   import { fetchCategoryOptions, fetchRecipes, type Recipe } from '$lib/api';
 
-  let recipe: Recipe | null = null;
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
-  let loading = true;
-  let error = '';
+  let recipe = $state<Recipe | null>(null);
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
+  let loading = $state(true);
+  let error = $state('');
 
   function getDisplayName(value: any, fallback = 'General') {
     if (!value) return fallback;
@@ -36,12 +36,14 @@
   }
 
   onMount(() => {
-    loadRecipe();
+    void loadRecipe();
   });
 
-  $: if (page.params.recipe_id) {
-    loadRecipe();
-  }
+  $effect(() => {
+    if (page.params.recipe_id) {
+      void loadRecipe();
+    }
+  });
 </script>
 
 <section class="page">
