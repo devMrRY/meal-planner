@@ -43,4 +43,6 @@ export type DbRecipe = {
   is_deleted: boolean;
   created_by?: string | null;
   created_at?: string;
+  updated_by?: string | null;
+  updated_at?: string;
 };

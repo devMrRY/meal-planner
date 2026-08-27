@@ -121,6 +121,7 @@
   $: if (recipeListEl) {
     recipeListEl.recipes = filteredRecipes;
     recipeListEl.layout = "grid";
+    recipeListEl.favoriteIds = [...favorites];
   }
 
   $: if (recipeDetailEl) {

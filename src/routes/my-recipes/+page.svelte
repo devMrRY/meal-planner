@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { deleteRecipe, fetchCategoryOptions, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
+  import { deleteRecipe, fetchCategoryOptions, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
 
   let userId = '';
   let selectedRecipe: Recipe | null = null;
   let userRecipes: Recipe[] = [];
+  let favoriteIds: string[] = [];
   let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
   let recipeListEl: any = null;
 
@@ -63,7 +64,15 @@
     if (!id) return;
     try {
       await toggleFavorite(userId, id);
-      // reload user's recipes to reflect any state changes if needed
+
+      const nextFavorites = new Set(favoriteIds);
+      if (nextFavorites.has(id)) {
+        nextFavorites.delete(id);
+      } else {
+        nextFavorites.add(id);
+      }
+
+      favoriteIds = [...nextFavorites];
       await reloadUserRecipes();
     } catch (e) {
       console.error('[MyRecipesPage] favorite error:', e);
@@ -85,6 +94,7 @@
   onMount(async () => {
     userId = genUserId();
     categoryOptions = await fetchCategoryOptions();
+    favoriteIds = await fetchFavorites(userId);
     await reloadUserRecipes();
     console.log('[MyRecipesPage] userId =', userId);
   });
@@ -94,6 +104,7 @@
     try {
       el.recipes = userRecipes;
       el.layout = 'grid';
+      el.favoriteIds = favoriteIds;
     } catch (err) {
       // ignore runtime assignment errors
     }

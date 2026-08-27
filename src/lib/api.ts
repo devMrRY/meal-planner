@@ -18,6 +18,8 @@ export interface Recipe {
   isDeleted: boolean;
   createdBy: string;
   createdAt: Date;
+  updatedBy?: string | null;
+  updatedAt?: Date | null;
 }
 
 export type CategoryOption = {
@@ -42,7 +44,9 @@ function toRecipe(db: DbRecipe): Recipe {
     subcategory_id: db.subcategory_id,
     isDeleted: db.is_deleted ?? false,
     createdBy: db.created_by ?? 'system',
-    createdAt: db.created_at ? new Date(db.created_at) : new Date()
+    createdAt: db.created_at ? new Date(db.created_at) : new Date(),
+    updatedBy: db.updated_by ?? 'system',
+    updatedAt: db.updated_at ? new Date(db.updated_at) : null
   };
 }
 
@@ -129,9 +133,10 @@ export async function updateRecipe(id: string, updates: Partial<Recipe>): Promis
     description: updates.description,
     ingredients: updates.ingredients,
     steps: updates.steps,
-    category_id: updates.category?.id ?? updates.category_id ?? null,
-    subcategory_id: updates.subcategory?.id ?? updates.subcategory_id ?? null,
-    is_deleted: updates.isDeleted ?? false
+    category_id: updates.category_id,
+    subcategory_id: updates.subcategory_id ?? null,
+    updated_by: (updates as any).updatedBy || 'user',
+    updated_at: new Date().toISOString()
   };
 
   const { data, error } = await supabase.from('recipes').update(payload).eq('is_deleted', false).eq('id', id).select('*, category:category_id(id, name), subcategory:subcategory_id(id, name)').single();

@@ -2,7 +2,6 @@
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
-  summary TEXT,
   image TEXT,
   description TEXT,
   ingredients TEXT[] DEFAULT '{}',
@@ -10,8 +9,10 @@ CREATE TABLE IF NOT EXISTS recipes (
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   subcategory_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  created_by TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_by TEXT DEFAULT 'system',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_by TEXT DEFAULT 'system',
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Create favorites table (many-to-many)
@@ -35,7 +36,10 @@ CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by TEXT DEFAULT 'system',
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  updated_by TEXT DEFAULT 'system'
 );
 
 -- Seed demo categories and subcategories using parent_id relationships
@@ -110,4 +114,6 @@ export type DbRecipe = {
   subcategory_id?: string | null;
   created_by?: string | null;
   created_at?: string | null;
+  updated_by?: string | null;
+  updated_at?: string | null;
 };
