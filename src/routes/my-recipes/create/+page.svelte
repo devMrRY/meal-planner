@@ -11,7 +11,7 @@
     if (!data) return;
 
     try {
-      const created = await createRecipe({ ...data, createdBy: 'user', createdAt: new Date() });
+      const created = await createRecipe({ ...data, createdBy: 'user' });
       goto(`/my-recipes?edit=${created.id}`);
     } catch (e) {
       console.error('[MyRecipesCreatePage] save error:', e);

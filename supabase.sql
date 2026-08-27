@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS recipes (
   description TEXT,
   ingredients TEXT[] DEFAULT '{}',
   steps TEXT[] DEFAULT '{}',
-  category TEXT,
-  subcategory TEXT,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  subcategory_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
   created_by TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -64,6 +64,8 @@ CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_recipe_id ON favorites(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
 CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
+CREATE INDEX IF NOT EXISTS idx_recipes_category_id ON recipes(category_id);
+CREATE INDEX IF NOT EXISTS idx_recipes_subcategory_id ON recipes(subcategory_id);
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
@@ -104,8 +106,8 @@ export type DbRecipe = {
   description?: string;
   ingredients?: string[];
   steps?: string[];
-  category?: string;
-  subcategory?: string;
+  category_id?: string | null;
+  subcategory_id?: string | null;
   created_by?: string | null;
   created_at?: string | null;
 };

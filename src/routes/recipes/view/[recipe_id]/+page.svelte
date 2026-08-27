@@ -1,17 +1,25 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { fetchRecipes, type Recipe } from '$lib/api';
+  import { fetchCategoryOptions, fetchRecipes, type Recipe } from '$lib/api';
 
   let recipe: Recipe | null = null;
+  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
   let loading = true;
   let error = '';
+
+  function getDisplayName(value: any, fallback = 'General') {
+    if (!value) return fallback;
+    if (typeof value === 'string') return value || fallback;
+    return value.name || value.id || fallback;
+  }
 
   async function loadRecipe() {
     loading = true;
     error = '';
 
     try {
+      categoryOptions = await fetchCategoryOptions();
       const recipeId = $page.params.recipe_id;
       const recipes = await fetchRecipes();
       recipe = recipes.find((item) => item.id === recipeId) ?? null;
@@ -53,7 +61,7 @@
       <div class="content">
         <div class="header-row">
           <div>
-            <p class="eyebrow">{recipe.category || 'General'} / {recipe.subcategory || 'General'}</p>
+            <p class="eyebrow">{getDisplayName(recipe.category, 'General')} / {getDisplayName(recipe.subcategory, 'General')}</p>
             <h1>{recipe.title}</h1>
           </div>
           <a href="/" class="back-link">Back</a>

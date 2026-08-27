@@ -29,6 +29,20 @@
 
   let recipeDetailEl: any = null;
 
+  function categoryIdOf(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') return String(value.id ?? value.category_id ?? '').trim();
+    return String(value).trim();
+  }
+
+  function categoryNameOf(value: any): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') return String(value.name ?? value.category_name ?? value.id ?? '').trim();
+    return String(value).trim();
+  }
+
   $: categoryList = [
     { id: "all", name: "All categories" },
     ...Array.from(
@@ -37,7 +51,7 @@
           ? categoryOptions
               .filter((item) => !item.parent_id)
               .map((item) => JSON.stringify({ id: item.id, name: item.name }))
-          : recipes.map((r) => JSON.stringify({ id: r.category, name: r.category })).filter(Boolean)
+          : recipes.map((r) => JSON.stringify({ id: categoryIdOf(r.category), name: categoryNameOf(r.category) })).filter(Boolean)
       )
     )
       .map((value) => JSON.parse(value))
@@ -64,7 +78,7 @@
                 ? categoryOptions
                     .filter((item) => item.parent_id)
                     .map((item) => JSON.stringify({ id: item.id, name: item.name }))
-                : recipes.map((r) => JSON.stringify({ id: r.subcategory, name: r.subcategory })).filter(Boolean)
+                : recipes.map((r) => JSON.stringify({ id: categoryIdOf(r.subcategory), name: categoryNameOf(r.subcategory) })).filter(Boolean)
             )
           )
             .map((value) => JSON.parse(value))
@@ -79,8 +93,8 @@
                     .filter((item) => item.parent_id === selectedCategoryRow?.id)
                     .map((item) => JSON.stringify({ id: item.id, name: item.name }))
                 : recipes
-                    .filter((r) => r.category === selectedCategory || (selectedCategoryRow && r.category === selectedCategoryRow.name))
-                    .map((r) => JSON.stringify({ id: r.subcategory, name: r.subcategory }))
+                    .filter((r) => categoryIdOf(r.category) === selectedCategory || (selectedCategoryRow && categoryNameOf(r.category) === selectedCategoryRow.name))
+                    .map((r) => JSON.stringify({ id: categoryIdOf(r.subcategory), name: categoryNameOf(r.subcategory) }))
                     .filter(Boolean)
             )
           )
@@ -91,31 +105,17 @@
   $: subcategoryDisabled = selectedCategory === "all";
 
   $: filteredRecipes = recipes.filter((recipe) => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !normalizedSearch ||
-      [
-        recipe.title,
-        recipe.summary,
-        recipe.description,
-        recipe.category,
-        recipe.subcategory,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch);
-
     const matchesCategory =
       selectedCategory === "all" ||
-      recipe.category === selectedCategory ||
-      (selectedCategoryRow && recipe.category === selectedCategoryRow.name);
+      categoryIdOf(recipe.category_id) === selectedCategory ||
+      (selectedCategoryRow && categoryNameOf(recipe.category?.name) === selectedCategoryRow.name);
 
     const matchesSubcategory =
       selectedSubcategory === "all" ||
-      recipe.subcategory === selectedSubcategory ||
-      (selectedSubcategoryRow && recipe.subcategory === selectedSubcategoryRow.name);
+      categoryIdOf(recipe.subcategory_id) === selectedSubcategory ||
+      (selectedSubcategoryRow && categoryNameOf(recipe.subcategory?.name) === selectedSubcategoryRow.name);
 
-    return matchesSearch && matchesCategory && matchesSubcategory;
+      return matchesCategory && matchesSubcategory;
   });
 
   $: if (recipeListEl) {
@@ -226,6 +226,7 @@
     userId = genUserId();
     loadAll();
   });
+   $: console.log("recipeDetailEl:", filteredRecipes);
 </script>
 
 <svelte:head>

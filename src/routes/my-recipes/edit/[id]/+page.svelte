@@ -8,7 +8,7 @@
   let loading = true;
   let error = '';
   let recipe: Recipe | null = null;
-  let categoryOptions = [];
+  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
 
   async function load() {
     loading = true;

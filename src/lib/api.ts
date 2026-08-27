@@ -1,15 +1,22 @@
+export type CategoryRef = {
+  id: string;
+  name: string;
+} | null;
+
 export interface Recipe {
   id: string;
   title: string;
-  summary: string;
+  summary?: string;
   image: string;
   description: string;
   ingredients: string[];
   steps: string[];
-  category: string;
-  subcategory: string;
+  category: CategoryRef;
+  subcategory: CategoryRef;
+  category_id?: string | null;
+  subcategory_id?: string | null;
   isDeleted: boolean;
-  createdBy: 'user' | 'system';
+  createdBy: string;
   createdAt: Date;
 }
 
@@ -21,26 +28,20 @@ export type CategoryOption = {
 
 import { supabase, type DbRecipe } from './supabase';
 
-function formatError(error: any): string {
-  if (!error) return 'Unknown error';
-  if (error.message) return error.message;
-  if (typeof error === 'string') return error;
-  return JSON.stringify(error);
-}
-
 function toRecipe(db: DbRecipe): Recipe {
   return {
     id: db.id,
     title: db.title,
-    summary: db.summary || '',
     image: db.image || '',
     description: db.description || '',
     ingredients: db.ingredients || [],
     steps: db.steps || [],
-    category: db.category || 'general',
-    subcategory: db.subcategory || 'general',
-    isDeleted: db.is_deleted ?? db.isDeleted ?? false,
-    createdBy: db.created_by === 'system' ? 'system' : 'user',
+    category: db.category ?? null,
+    subcategory: db.subcategory ?? null,
+    category_id: db.category_id,
+    subcategory_id: db.subcategory_id,
+    isDeleted: db.is_deleted ?? false,
+    createdBy: db.created_by ?? 'system',
     createdAt: db.created_at ? new Date(db.created_at) : new Date()
   };
 }
@@ -73,58 +74,50 @@ export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
 }
 
 export async function fetchRecipes(): Promise<Recipe[]> {
-  console.log('[API] Fetching active recipes...');
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('*, category:category_id(id, name), subcategory:subcategory_id(id, name)')
+    .eq('is_deleted', false);
 
-  const { data, error } = await supabase.from('recipes').select('*');
   if (error) {
     console.error('[API] Fetch recipes error:', error);
     return [];
   }
 
-  const recipes = (data as DbRecipe[] | null || [])
-    .filter((recipe) => {
-      const value = recipe.is_deleted ?? recipe.isDeleted ?? false;
-      return value === false;
-    })
-    .map(toRecipe);
-
-  console.log('[API] Fetched active recipes:', recipes.length);
+  const recipes = ((data as DbRecipe[] | null) || []).map(toRecipe);
   return recipes;
 }
 
 export async function fetchUserRecipes(userId: string): Promise<Recipe[]> {
   console.log('[API] Fetching recipes for user:', userId);
 
-  const { data, error } = await supabase.from('recipes').select('*').eq('created_by', userId);
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('*, category:category_id(id, name), subcategory:subcategory_id(id, name)')
+    .eq('is_deleted', false)
+    .eq('created_by', userId);
+
   if (error) {
     console.error('[API] Fetch user recipes error:', error);
     return [];
   }
 
-  return (data as DbRecipe[] | null || [])
-    .filter((recipe) => {
-      const value = recipe.is_deleted ?? recipe.isDeleted ?? false;
-      return value === false;
-    })
-    .map(toRecipe);
+  return ((data as DbRecipe[] | null) || []).map(toRecipe);
 }
 
-export async function createRecipe(recipe: Omit<Recipe, 'id' | 'createdBy' | 'createdAt'>): Promise<Recipe> {
+export async function createRecipe(recipe: Omit<Recipe, 'id' | 'createdBy'>): Promise<Recipe> {
   const payload: Partial<DbRecipe> = {
     title: recipe.title,
-    summary: recipe.summary,
     image: recipe.image,
     description: recipe.description,
     ingredients: recipe.ingredients,
     steps: recipe.steps,
-    category: recipe.category,
-    subcategory: recipe.subcategory,
-    is_deleted: false,
-    isDeleted: false,
-    created_by: (recipe as any).createdBy || (recipe as any).created_by || 'user'
+    category_id: recipe.category_id,
+    subcategory_id: recipe.subcategory_id ?? null,
+    created_by: (recipe as any).createdBy || 'user'
   };
 
-  const { data, error } = await supabase.from('recipes').insert(payload).select().single();
+  const { data, error } = await supabase.from('recipes').insert(payload).select('*, category:category_id(id, name), subcategory:subcategory_id(id, name)').single();
   if (error) throw error;
   return toRecipe(data as DbRecipe);
 }
@@ -132,18 +125,16 @@ export async function createRecipe(recipe: Omit<Recipe, 'id' | 'createdBy' | 'cr
 export async function updateRecipe(id: string, updates: Partial<Recipe>): Promise<Recipe> {
   const payload: Partial<DbRecipe> = {
     title: updates.title,
-    summary: updates.summary,
     image: updates.image,
     description: updates.description,
     ingredients: updates.ingredients,
     steps: updates.steps,
-    category: updates.category,
-    subcategory: updates.subcategory,
-    is_deleted: updates.isDeleted ?? false,
-    isDeleted: updates.isDeleted ?? false
+    category_id: updates.category?.id ?? updates.category_id ?? null,
+    subcategory_id: updates.subcategory?.id ?? updates.subcategory_id ?? null,
+    is_deleted: updates.isDeleted ?? false
   };
 
-  const { data, error } = await supabase.from('recipes').update(payload).eq('id', id).select().single();
+  const { data, error } = await supabase.from('recipes').update(payload).eq('is_deleted', false).eq('id', id).select('*, category:category_id(id, name), subcategory:subcategory_id(id, name)').single();
   if (error) throw error;
   return toRecipe(data as DbRecipe);
 }
@@ -151,7 +142,7 @@ export async function updateRecipe(id: string, updates: Partial<Recipe>): Promis
 export async function deleteRecipe(id: string): Promise<void> {
   const { error } = await supabase
     .from('recipes')
-    .update({ is_deleted: true, isDeleted: true })
+    .update({ is_deleted: true })
     .eq('id', id);
 
   if (error) throw error;

@@ -11,12 +11,12 @@
   let recipeListEl: any = null;
 
   function genUserId() {
-    const existing = localStorage.getItem('rp_user');
-    if (existing) return existing;
+    // const existing = localStorage.getItem('rp_user');
+    // if (existing) return existing;
 
-    const id = 'user_' + Math.random().toString(36).slice(2, 9);
-    localStorage.setItem('rp_user', id);
-    return id;
+    // const id = 'user_' + Math.random().toString(36).slice(2, 9);
+    // localStorage.setItem('rp_user', id);
+    return 'user';
   }
 
   async function reloadUserRecipes() {
@@ -70,6 +70,14 @@
     }
   };
 
+  const handleRecipeEdit = (event: Event) => {
+    handleEdit((event as CustomEvent<string>).detail);
+  };
+
+  const handleRecipeDelete = (event: Event) => {
+    handleDelete((event as CustomEvent<string>).detail);
+  };
+
   const handleNew = () => {
     goto('/my-recipes/create');
   };
@@ -91,8 +99,9 @@
     }
   }
 
-  $: if (recipeListEl) setRecipeListProps(recipeListEl);
+  $: if (recipeListEl && userRecipes.length) setRecipeListProps(recipeListEl);
 
+  $: console.log(recipeListEl, userRecipes);
 </script>
 
 <section class="route-page">
@@ -109,8 +118,8 @@
       layout="grid"
       on:open={handleOpen}
       on:favorite={handleFavorite}
-      on:edit={(e) => handleEdit(e.detail)}
-      on:delete={(e) => handleDelete(e.detail)}
+      on:edit={handleRecipeEdit}
+      on:delete={handleRecipeDelete}
     ></recipe-list>
   </div>
 </section>

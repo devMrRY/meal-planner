@@ -34,10 +34,13 @@ export type DbRecipe = {
   description?: string;
   ingredients?: string[];
   steps?: string[];
-  category?: string;
-  subcategory?: string;
-  is_deleted?: boolean;
-  isDeleted?: boolean;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  category?: { id: string; name: string } | null;
+  subcategory?: { id: string; name: string } | null;
+  category_name?: string | null;
+  subcategory_name?: string | null;
+  is_deleted: boolean;
   created_by?: string | null;
-  created_at?: string | null;
+  created_at?: string;
 };
