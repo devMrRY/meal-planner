@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { fetchCategoryOptions, fetchRecipes, type Recipe } from '$lib/api';
 
@@ -20,7 +20,7 @@
 
     try {
       categoryOptions = await fetchCategoryOptions();
-      const recipeId = $page.params.recipe_id;
+      const recipeId = page.params.recipe_id;
       const recipes = await fetchRecipes();
       recipe = recipes.find((item) => item.id === recipeId) ?? null;
 
@@ -39,7 +39,7 @@
     loadRecipe();
   });
 
-  $: if ($page.params.recipe_id) {
+  $: if (page.params.recipe_id) {
     loadRecipe();
   }
 </script>

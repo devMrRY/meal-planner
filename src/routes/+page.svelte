@@ -339,14 +339,6 @@
     opacity: 0.7;
   }
 
-  .panel {
-    margin-top: 24px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 18px;
-  }
-
   .loading {
     padding: 20px;
     text-align: center;

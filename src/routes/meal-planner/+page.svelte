@@ -45,7 +45,7 @@
   {#if isLoading}
     <p>Loading meal plan...</p>
   {:else}
-    <meal-planner bind:this={mealPlannerEl} onplanChange={handlePlanChange}></meal-planner>
+    <meal-planner bind:this={mealPlannerEl} on:planChange={handlePlanChange}></meal-planner>
   {/if}
 </section>
 

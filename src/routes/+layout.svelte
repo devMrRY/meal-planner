@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { defineCustomElements } from '@recipe-planner/recipe-components/loader';
 
@@ -20,7 +20,7 @@
     <a href="/" class="brand">Recipe Planner</a>
     <div class="nav-links">
       {#each navItems as item}
-        <a href={item.href} class:active={$page.url.pathname === item.href}>{item.label}</a>
+        <a href={item.href} class:active={page.url.pathname === item.href}>{item.label}</a>
       {/each}
     </div>
   </nav>

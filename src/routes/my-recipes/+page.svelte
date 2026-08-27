@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { deleteRecipe, fetchCategoryOptions, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
 
@@ -155,94 +154,20 @@
     font-size: 2rem;
   }
 
-  .new-button,
-  .secondary,
-  .danger {
+  .new-button {
     border: none;
     border-radius: 8px;
     padding: 0.65rem 0.9rem;
     font: inherit;
     cursor: pointer;
-  }
-
-  .new-button {
     background: #111827;
     color: #fff;
-  }
-
-  .secondary {
-    background: #e5e7eb;
-    color: #111827;
-  }
-
-  .danger {
-    background: #fee2e2;
-    color: #991b1b;
   }
 
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
     gap: 1.25rem;
-  }
-
-  .form-panel,
-  .list-panel {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1rem;
-  }
-
-  .list-panel h2 {
-    margin: 0 0 1rem;
-    font-size: 1.1rem;
-  }
-
-  .empty-state {
-    color: #6b7280;
-    margin: 0;
-  }
-
-  .recipe-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .recipe-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.8rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #f9fafb;
-  }
-
-  .recipe-list li.active {
-    border-color: #f59e0b;
-    background: #fff7ed;
-  }
-
-  .recipe-list strong,
-  .recipe-list small {
-    display: block;
-  }
-
-  .recipe-list small {
-    color: #6b7280;
-    margin-top: 4px;
-  }
-
-  .item-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
   }
 
   @media (max-width: 800px) {
