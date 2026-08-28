@@ -1,18 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { deleteRecipe, fetchCategoryOptions, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
+  import { deleteRecipe, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
+  import { getUserId } from '../../helpers/utils';
 
   let userId = $state('');
   let selectedRecipe = $state<Recipe | null>(null);
   let userRecipes = $state<Recipe[]>([]);
   let favoriteIds = $state<string[]>([]);
-  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
   let recipeListEl = $state<any>(null);
-
-  function genUserId() {
-    return 'user';
-  }
 
   async function reloadUserRecipes() {
     if (!userId) return;
@@ -34,6 +30,11 @@
 
     try {
       await deleteRecipe(recipeId);
+      const isFavorite = favoriteIds.includes(recipeId);
+      if (isFavorite) {
+        await toggleFavorite(userId, recipeId, true); // Remove from favorites if it was a favorite
+        favoriteIds = favoriteIds.filter((id) => id !== recipeId);
+      }
       if (selectedRecipe?.id === recipeId) {
         selectedRecipe = null;
       }
@@ -56,8 +57,9 @@
   const handleFavorite = async (event: Event) => {
     const id = (event as CustomEvent<string>).detail;
     if (!id) return;
+    const isFavorite = favoriteIds.includes(id);
     try {
-      await toggleFavorite(userId, id);
+      await toggleFavorite(userId, id, isFavorite);
 
       const nextFavorites = new Set(favoriteIds);
       if (nextFavorites.has(id)) {
@@ -86,9 +88,9 @@
   };
 
   onMount(async () => {
-    userId = genUserId();
-    categoryOptions = await fetchCategoryOptions();
-    favoriteIds = await fetchFavorites(userId);
+    userId = getUserId();
+    const favouriteRecipes = await fetchFavorites(userId);
+    favoriteIds = favouriteRecipes.map((r) => r.id);
     await reloadUserRecipes();
   });
 

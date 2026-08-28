@@ -19,16 +19,20 @@ CREATE TABLE IF NOT EXISTS recipes (
 CREATE TABLE IF NOT EXISTS favorites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL,
-  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
+  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
+  updated_by TEXT DEFAULT 'system',
+  updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (user_id, recipe_id)
 );
 
 -- Create meal_plans table
 CREATE TABLE IF NOT EXISTS meal_plans (
-  user_id TEXT PRIMARY KEY,
-  plan JSONB DEFAULT '{}',
-  updated_at TIMESTAMPTZ DEFAULT now()
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  meal_type TEXT NOT NULL,
+  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
+  updated_by TEXT DEFAULT 'system',
+  updated_at TIMESTAMPTZ DEFAULT now(),
 );
 
 -- Create categories table
@@ -36,8 +40,6 @@ CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  created_by TEXT DEFAULT 'system',
   updated_at TIMESTAMPTZ DEFAULT now(),
   updated_by TEXT DEFAULT 'system'
 );
@@ -93,8 +95,9 @@ CREATE POLICY "allow_delete_favorites" ON favorites FOR DELETE USING (true);
 
 -- Meal Plans: Allow anyone to read/upsert their own
 CREATE POLICY "allow_read_meal_plans" ON meal_plans FOR SELECT USING (true);
-CREATE POLICY "allow_upsert_meal_plans" ON meal_plans FOR INSERT WITH CHECK (true);
-CREATE POLICY "allow_update_meal_plans" ON meal_plans FOR UPDATE USING (true);
+CREATE POLICY "allow_insert_meal_plans" ON meal_plans FOR INSERT WITH CHECK (true);
+CREATE POLICY "allow_update_meal_plans" ON meal_plans FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "allow_delete_meal_plans" ON meal_plans FOR DELETE USING (true);
 
 -- Categories: Allow anyone to read, insert/update/delete for demo
 CREATE POLICY "allow_read_categories" ON categories FOR SELECT USING (true);
