@@ -1,14 +1,23 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { deleteRecipe, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
-  import { getUserId } from '$lib/helpers/utils';
+  import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
+  import {
+    deleteRecipe,
+    fetchFavorites,
+    fetchUserRecipes,
+    toggleFavorite,
+    type Recipe,
+  } from "$lib/api";
+  import { getUserId, showToast } from "$lib/helpers/utils";
+  import { EmptyRecipe } from "$lib/components";
 
-  let userId = $state('');
+  let userId = $state("");
+  let isLoadingMore = $state(false);
   let selectedRecipe = $state<Recipe | null>(null);
   let userRecipes = $state<Recipe[]>([]);
   let favoriteIds = $state<string[]>([]);
   let recipeListEl = $state<any>(null);
+  let isLoading = $state(false);
 
   async function reloadUserRecipes() {
     if (!userId) return;
@@ -20,7 +29,10 @@
       selectedRecipe = recipes[0];
     }
 
-    if (selectedRecipe && !recipes.some((recipe) => recipe.id === selectedRecipe?.id)) {
+    if (
+      selectedRecipe &&
+      !recipes.some((recipe) => recipe.id === selectedRecipe?.id)
+    ) {
       selectedRecipe = recipes[0] ?? null;
     }
   }
@@ -38,9 +50,11 @@
       if (selectedRecipe?.id === recipeId) {
         selectedRecipe = null;
       }
-      await reloadUserRecipes();
+      userRecipes = userRecipes.filter((recipe) => recipe.id !== recipeId);
+      showToast("Recipe deleted successfully.", "success");
     } catch (e) {
-      console.error('[MyRecipesPage] delete error:', e);
+      console.error("[MyRecipesPage] delete error:", e);
+      showToast("Failed to delete recipe.", "error");
     }
   };
 
@@ -60,7 +74,6 @@
     const isFavorite = favoriteIds.includes(id);
     try {
       await toggleFavorite(userId, id, isFavorite);
-
       const nextFavorites = new Set(favoriteIds);
       if (nextFavorites.has(id)) {
         nextFavorites.delete(id);
@@ -69,9 +82,20 @@
       }
 
       favoriteIds = [...nextFavorites];
-      await reloadUserRecipes();
+      showToast(
+        isFavorite
+          ? "Recipe removed from favorites."
+          : "Recipe added to favorites.",
+        "success",
+      );
     } catch (e) {
-      console.error('[MyRecipesPage] favorite error:', e);
+      console.error("[MyRecipesPage] favorite error:", e);
+      showToast(
+        isFavorite
+          ? "Failed to remove recipe from favorites."
+          : "Failed to add recipe to favorites.",
+        "error",
+      );
     }
   };
 
@@ -84,21 +108,33 @@
   };
 
   const handleNew = () => {
-    goto('/my-recipes/create');
+    goto("/my-recipes/create");
+  };
+
+  const handleLoadMore = async () => {
+    isLoadingMore = true;
+    const newRecipes = await fetchUserRecipes(
+      userId,
+      Math.floor(userRecipes.length / 10) + 1,
+    );
+    userRecipes = [...userRecipes, ...newRecipes];
+    isLoadingMore = false;
   };
 
   onMount(async () => {
+    isLoading = true;
     userId = getUserId();
     const favouriteRecipes = await fetchFavorites(userId);
     favoriteIds = favouriteRecipes.map((r) => r.id);
     await reloadUserRecipes();
+    isLoading = false;
   });
 
   function setRecipeListProps(el: any) {
     try {
       el.recipes = userRecipes.map((recipe) => ({
         ...recipe,
-        isOwner: true
+        isOwner: true,
       }));
       el.layout = "grid";
       el.favoriteIds = favoriteIds;
@@ -123,14 +159,32 @@
   </div>
 
   <div class="layout">
-    <recipe-list
-      bind:this={recipeListEl}
-      layout="grid"
-      onopen={handleOpen}
-      onfavorite={handleFavorite}
-      onedit={handleRecipeEdit}
-      ondelete={handleRecipeDelete}
-    ></recipe-list>
+    {#if isLoading}
+      <p class="loading">Loading recipes...</p>
+    {:else if userRecipes.length === 0}
+      <EmptyRecipe
+        title="No recipes yet"
+        description="You haven't created any recipes yet. Start building your collection by adding your first recipe."
+      >
+        <button type="button" class="create-button" onclick={handleNew}>
+          + Create your first recipe
+        </button>
+      </EmptyRecipe>
+    {:else}
+      <recipe-list
+        bind:this={recipeListEl}
+        layout="grid"
+        onopen={handleOpen}
+        onfavorite={handleFavorite}
+        onedit={handleRecipeEdit}
+        ondelete={handleRecipeDelete}
+      ></recipe-list>
+      <div class="load-more-container">
+        <button onclick={handleLoadMore} disabled={isLoadingMore}>
+          {isLoadingMore ? "Loading..." : "Load More"}
+        </button>
+      </div>
+    {/if}
   </div>
 </section>
 
@@ -149,6 +203,12 @@
     margin-bottom: 1.25rem;
   }
 
+  .loading {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #6b7280;
+  }
+
   h1 {
     margin: 0;
     font-size: 2rem;
@@ -160,19 +220,83 @@
     padding: 0.65rem 0.9rem;
     font: inherit;
     cursor: pointer;
-    background: #111827;
+    background: #f59e0b;
     color: #fff;
   }
 
-  .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
-    gap: 1.25rem;
+  .new-button:hover {
+    background: #d97706;
   }
 
-  @media (max-width: 800px) {
-    .layout {
-      grid-template-columns: 1fr;
-    }
+  .layout {
+    width: 100%;
+  }
+
+  .load-more-container {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+
+  .load-more-container button {
+    padding: 0.7rem 1.2rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #f59e0b;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .load-more-container button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  .load-more-container button:hover:not(:disabled) {
+    background: #d97706;
+  }
+
+  .create-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 10px 18px;
+
+    border: none;
+    border-radius: 9px;
+
+    background: #f59e0b;
+    color: #ffffff;
+
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
+
+    transition:
+      background 0.15s ease,
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .create-button:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(245, 158, 11, 0.25);
+  }
+
+  .create-button:active {
+    transform: translateY(0);
+  }
+
+  .create-button:focus-visible {
+    outline: 2px solid #f59e0b;
+    outline-offset: 3px;
   }
 </style>

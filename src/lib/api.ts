@@ -94,7 +94,8 @@ export async function fetchRecipes(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
     )
     .eq("is_deleted", false)
-    .range(from, to);
+    .range(from, to)
+    .order("updated_at", { ascending: false });
 
   if (searchTerm?.trim()) {
     query = query.ilike("title", `%${searchTerm.trim()}%`);
@@ -132,7 +133,8 @@ export async function fetchUserRecipes(userId: string, page: number = 1, pageSiz
     )
     .eq("is_deleted", false)
     .eq("created_by", userId)
-    .range(from, to);
+    .range(from, to)
+    .order("updated_at", { ascending: false });
 
   if (error) {
     console.error("[API] Fetch user recipes error:", error);
@@ -216,7 +218,8 @@ export async function fetchFavorites(userId: string, page: number = 1, pageSize:
       "recipe_id, recipe:recipe_id(title, image, description, ingredients, steps, category_id, category:category_id(id, name), subcategory_id, subcategory:subcategory_id(id, name))",
     )
     .eq("user_id", userId)
-    .range(from, to);
+    .range(from, to)
+    .order("created_at", { ascending: false });
   if (error) {
     console.warn("[API] Fetch favorites error (non-fatal):", error);
     return [];
@@ -261,7 +264,8 @@ export async function fetchMealPlan(userId: string): Promise<any[]> {
     .select(
       "*, recipe:recipe_id(title, image, description, ingredients, steps, category_id, category:category_id(id, name), subcategory_id, subcategory:subcategory_id(id, name))",
     )
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
 
   if (error) {
     console.warn("[API] Fetch meal plan error (non-fatal):", error);

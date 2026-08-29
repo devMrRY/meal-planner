@@ -16,6 +16,7 @@
   let favorites = $state<Set<string>>(new Set());
 
   let isLoading = $state(true);
+  let isLoadingMore = $state(false);
   let error = $state("");
   let userId = $state("");
 
@@ -199,6 +200,18 @@
     categoryOptions = fetchedCategories;
   }
 
+  const handleLoadMore = async () => {
+    isLoadingMore = true;
+    const newRecipes = await fetchRecipes(
+      searchTerm,
+      selectedCategory,
+      selectedSubcategory,
+      Math.floor(recipes.length/10) + 1,
+    );
+    recipes = [...recipes, ...newRecipes];
+    isLoadingMore = false;
+  }
+
   onMount(() => {
     userId = getUserId();
     loadAll();
@@ -275,6 +288,11 @@
       onedit={handleEdit}
       ondelete={handleDelete}
     ></recipe-list>
+    <div class="load-more-container">
+      <button onclick={handleLoadMore} disabled={isLoadingMore}>
+        {isLoadingMore ? "Loading..." : "Load More"}
+      </button>
+    </div>
   {/if}
 </section>
 
@@ -347,5 +365,37 @@
 
   .error-box li {
     margin: 4px 0;
+  }
+
+  .load-more-container {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    margin-top: 1.5rem;
+  }
+
+  .load-more-container button {
+    padding: 0.7rem 1.2rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #f59e0b;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .load-more-container button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  .load-more-container button:hover:not(:disabled) {
+    background: #d97706;
+  }
+
+  @media (max-width: 600px) {
+    .filters {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
