@@ -20,7 +20,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@recipe-planner/recipe-components": "file:..",
+    "@reticentrahul/recipe-planner": "^1.0.1",
     "@supabase/supabase-js": "^2.33.0"
   }
 }

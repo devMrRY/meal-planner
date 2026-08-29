@@ -1,11 +1,10 @@
 /// <reference types="@sveltejs/kit" />
 declare global {
   interface Window {
-    showToast: (
+    showToast?: (
       message: string,
-      type?: "success" | "error" | "info"
+      type?: "success" | "error" | "info",
     ) => void;
   }
 }
-
 export {};

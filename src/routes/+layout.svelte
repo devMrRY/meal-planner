@@ -1,17 +1,8 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { onMount } from "svelte";
-  import { defineCustomElements } from "@recipe-planner/recipe-components/loader";
+  import { defineCustomElements } from "@reticentrahul/recipe-planner/loader";
   import { getUserId } from "../helpers/utils";
-
-  declare global {
-    interface Window {
-      showToast?: (
-        message: string,
-        type?: "success" | "error" | "info",
-      ) => void;
-    }
-  }
 
   type ToastType = "success" | "error" | "info";
 
@@ -57,8 +48,7 @@
 
     return () => {
       window.removeEventListener("app:toast", handleToastEvent);
-      delete (window as typeof window & { showToast?: typeof showToast })
-        .showToast;
+      window.showToast = undefined;
     };
   });
 </script>
