@@ -9,7 +9,7 @@
     type Recipe,
   } from "$lib/api";
   import { goto } from "$app/navigation";
-  import { getUserId, showToast } from "../helpers/utils";
+  import { getUserId, showToast } from "$lib/helpers/utils";
 
   let recipes = $state<Recipe[]>([]);
   let selectedRecipe = $state<Recipe | null>(null);
@@ -34,7 +34,6 @@
 
   function handleSearch() {
     clearTimeout(searchTimeout);
-
     searchTimeout = setTimeout(() => {
       loadRecipes();
     }, 300);
@@ -155,8 +154,10 @@
         favorites = nextFavorites;
       }
       loadRecipes();
+      showToast("Recipe deleted successfully!", "success");
     } catch (e) {
       console.error("[Page] Delete error:", e);
+      showToast("Failed to delete recipe.", "error");
     }
   };
 
@@ -169,6 +170,7 @@
       loadCategories();
     } catch (e) {
       console.error("[Page] loadAll() error:", e);
+      showToast("Failed to load application data.", "error");
       error =
         e instanceof Error ? e.message : "Failed to load application data";
     } finally {
@@ -231,12 +233,11 @@
       </ul>
     </div>
   {:else}
-    <p>Favorites: {favorites.size}</p>
-
     <div class="filters">
       <label>
-        <span>Search</span>
+        <span>Search recipes</span>
         <input
+          name="search-recipes"
           bind:value={searchTerm}
           oninput={handleSearch}
           type="search"
@@ -268,7 +269,7 @@
 
     <recipe-list
       bind:this={recipeListEl}
-      showActions={true}
+      layout="grid"
       onopen={handleOpen}
       onfavorite={handleFavorite}
       onedit={handleEdit}
@@ -282,7 +283,6 @@
     max-width: 1100px;
     margin: 0 auto;
     padding: 32px 20px 80px;
-    font-family: Arial, sans-serif;
     color: #1f2937;
   }
 

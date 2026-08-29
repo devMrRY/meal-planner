@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { deleteRecipe, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
-  import { getUserId } from '../../helpers/utils';
+  import { getUserId } from '$lib/helpers/utils';
 
   let userId = $state('');
   let selectedRecipe = $state<Recipe | null>(null);
@@ -96,11 +96,14 @@
 
   function setRecipeListProps(el: any) {
     try {
-      el.recipes = userRecipes;
-      el.layout = 'grid';
+      el.recipes = userRecipes.map((recipe) => ({
+        ...recipe,
+        isOwner: true
+      }));
+      el.layout = "grid";
       el.favoriteIds = favoriteIds;
     } catch (err) {
-      // ignore runtime assignment errors
+      console.error("[MyRecipesPage] setRecipeListProps error:", err);
     }
   }
 

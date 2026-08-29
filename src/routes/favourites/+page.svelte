@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { fetchFavorites, toggleFavorite, type Recipe } from '$lib/api';
-  import { getUserId } from '../../helpers/utils';
+  import { onMount } from "svelte";
+  import { fetchFavorites, toggleFavorite, type Recipe } from "$lib/api";
+  import { getUserId } from "$lib/helpers/utils";
 
-  let userId = $state('');
+  let userId = $state("");
   let selectedRecipe = $state<Recipe | null>(null);
   let userRecipes = $state<Recipe[]>([]);
   let favoriteIds = $state<string[]>([]);
@@ -26,7 +26,7 @@
       favoriteIds = [...nextFavorites];
       // await reloadUserRecipes();
     } catch (e) {
-      console.error('[MyRecipesPage] favorite error:', e);
+      console.error("[MyRecipesPage] favorite error:", e);
     }
   };
 
@@ -41,7 +41,10 @@
       selectedRecipe = favoriteRecipes[0];
     }
 
-    if (selectedRecipe && !favoriteRecipes.some((recipe) => recipe.id === selectedRecipe?.id)) {
+    if (
+      selectedRecipe &&
+      !favoriteRecipes.some((recipe) => recipe.id === selectedRecipe?.id)
+    ) {
       selectedRecipe = favoriteRecipes[0] ?? null;
     }
   }
@@ -54,7 +57,7 @@
   function setRecipeListProps(el: any) {
     try {
       el.recipes = userRecipes;
-      el.layout = 'grid';
+      el.layout = "grid";
       el.favoriteIds = favoriteIds;
     } catch (err) {
       // ignore runtime assignment errors
@@ -91,12 +94,12 @@
     padding: 2rem 0;
   }
 
-  .page-header > h1{
+  .page-header > h1 {
     margin-bottom: 0.75rem;
     font-size: 2rem;
   }
 
-  .page-header p{
+  .page-header p {
     color: #4b5563;
     font-size: 1rem;
   }

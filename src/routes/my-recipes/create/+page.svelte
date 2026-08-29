@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { createRecipe, fetchCategoryOptions, type Recipe } from '$lib/api';
-  import { getUserId, showToast } from '../../../helpers/utils';
+  import { getUserId, showToast } from '$lib/helpers/utils';
 
   let recipeFormEl = $state<(HTMLElement & { recipe?: Recipe; categories?: Array<{ id: string; name: string; parent_id: string | null }> }) | null>(null);
   let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);

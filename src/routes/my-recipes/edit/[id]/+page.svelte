@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { fetchRecipes, updateRecipe, fetchCategoryOptions, type Recipe } from '$lib/api';
-  import { showToast } from '../../../../helpers/utils';
+  import { showToast } from '$lib/helpers/utils';
 
   let recipeFormEl = $state<any>(null);
   let loading = $state(true);

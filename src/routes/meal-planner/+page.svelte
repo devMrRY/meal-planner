@@ -10,7 +10,7 @@
     clearMealPlansForDate,
     clearWeek,
   } from "$lib/api";
-  import { getCurrentDate, getUserId } from "../../helpers/utils";
+  import { getCurrentDate, getUserId } from "$lib/helpers/utils";
 
   let planner: HTMLElement;
   let userId = $state("");
