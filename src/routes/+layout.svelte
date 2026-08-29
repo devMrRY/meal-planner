@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { onMount } from "svelte";
-  import { defineCustomElements } from "@reticentrahul/recipe-planner/loader";
   import { getUserId } from "$lib/helpers/utils";
 
   type ToastType = "success" | "error" | "info";
@@ -32,10 +31,11 @@
   }
 
   onMount(() => {
-    defineCustomElements(window);
-    getUserId();
-
+    import("@reticentrahul/recipe-planner/loader").then((module) => {
+      module.defineCustomElements(window);
+    });
     window.showToast = showToastMessage;
+    getUserId();
 
     return () => {
       window.showToast = undefined;
