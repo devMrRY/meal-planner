@@ -51,8 +51,6 @@ function toRecipe(db: DbRecipe): Recipe {
 }
 
 export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
-  console.log("[API] Fetching category options...");
-
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, parent_id");
@@ -74,8 +72,6 @@ export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
       };
     })
     .filter(Boolean) as CategoryOption[];
-
-  console.log("[API] Fetched category options:", normalized.length);
   return normalized;
 }
 
@@ -121,8 +117,6 @@ export async function fetchRecipes(
 }
 
 export async function fetchUserRecipes(userId: string, page: number = 1, pageSize: number = 10): Promise<Recipe[]> {
-  console.log("[API] Fetching recipes for user:", userId);
-
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -258,7 +252,6 @@ export async function toggleFavorite(
 
 // Meal plans table: user_id, meal_type, recipe_id
 export async function fetchMealPlan(userId: string): Promise<any[]> {
-  console.log("[API] Fetching meal plan for user:", userId);
   const { data, error } = await supabase
     .from("meal_plans")
     .select(
@@ -296,8 +289,6 @@ export async function saveMealPlan(entry: {
 
   if (error) {
     console.warn("[API] Save meal plan error:", error);
-  } else {
-    console.log("[API] Meal plan saved");
   }
 }
 
@@ -332,7 +323,6 @@ export async function deleteMealPlan(id: string): Promise<void> {
   if (error) {
     console.warn("[API] Delete meal plan error:", error);
   }
-  console.log("[API] Meal plan deleted");
 }
 
 export async function clearWeek(
