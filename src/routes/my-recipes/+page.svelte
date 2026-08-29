@@ -1,24 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { deleteRecipe, fetchCategoryOptions, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
+  import { deleteRecipe, fetchFavorites, fetchUserRecipes, toggleFavorite, type Recipe } from '$lib/api';
+  import { getUserId } from '$lib/helpers/utils';
 
-  let userId = '';
-  let selectedRecipe: Recipe | null = null;
-  let userRecipes: Recipe[] = [];
-  let favoriteIds: string[] = [];
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
-  let recipeListEl: any = null;
-
-  function genUserId() {
-    // const existing = localStorage.getItem('rp_user');
-    // if (existing) return existing;
-
-    // const id = 'user_' + Math.random().toString(36).slice(2, 9);
-    // localStorage.setItem('rp_user', id);
-    return 'user';
-  }
+  let userId = $state('');
+  let selectedRecipe = $state<Recipe | null>(null);
+  let userRecipes = $state<Recipe[]>([]);
+  let favoriteIds = $state<string[]>([]);
+  let recipeListEl = $state<any>(null);
 
   async function reloadUserRecipes() {
     if (!userId) return;
@@ -40,6 +30,11 @@
 
     try {
       await deleteRecipe(recipeId);
+      const isFavorite = favoriteIds.includes(recipeId);
+      if (isFavorite) {
+        await toggleFavorite(userId, recipeId, true); // Remove from favorites if it was a favorite
+        favoriteIds = favoriteIds.filter((id) => id !== recipeId);
+      }
       if (selectedRecipe?.id === recipeId) {
         selectedRecipe = null;
       }
@@ -62,8 +57,9 @@
   const handleFavorite = async (event: Event) => {
     const id = (event as CustomEvent<string>).detail;
     if (!id) return;
+    const isFavorite = favoriteIds.includes(id);
     try {
-      await toggleFavorite(userId, id);
+      await toggleFavorite(userId, id, isFavorite);
 
       const nextFavorites = new Set(favoriteIds);
       if (nextFavorites.has(id)) {
@@ -92,33 +88,36 @@
   };
 
   onMount(async () => {
-    userId = genUserId();
-    categoryOptions = await fetchCategoryOptions();
-    favoriteIds = await fetchFavorites(userId);
+    userId = getUserId();
+    const favouriteRecipes = await fetchFavorites(userId);
+    favoriteIds = favouriteRecipes.map((r) => r.id);
     await reloadUserRecipes();
-    console.log('[MyRecipesPage] userId =', userId);
   });
 
-  // No embedded form on this page: creation/editing handled on separate routes
   function setRecipeListProps(el: any) {
     try {
-      el.recipes = userRecipes;
-      el.layout = 'grid';
+      el.recipes = userRecipes.map((recipe) => ({
+        ...recipe,
+        isOwner: true
+      }));
+      el.layout = "grid";
       el.favoriteIds = favoriteIds;
     } catch (err) {
-      // ignore runtime assignment errors
+      console.error("[MyRecipesPage] setRecipeListProps error:", err);
     }
   }
 
-  $: if (recipeListEl && userRecipes.length) setRecipeListProps(recipeListEl);
-
-  $: console.log(recipeListEl, userRecipes);
+  $effect(() => {
+    if (recipeListEl && userRecipes.length) {
+      setRecipeListProps(recipeListEl);
+    }
+  });
 </script>
 
 <section class="route-page">
   <div class="page-header">
     <h1>My Recipes</h1>
-    <button type="button" class="new-button" on:click={handleNew}>
+    <button type="button" class="new-button" onclick={handleNew}>
       + New recipe
     </button>
   </div>
@@ -127,10 +126,10 @@
     <recipe-list
       bind:this={recipeListEl}
       layout="grid"
-      on:open={handleOpen}
-      on:favorite={handleFavorite}
-      on:edit={handleRecipeEdit}
-      on:delete={handleRecipeDelete}
+      onopen={handleOpen}
+      onfavorite={handleFavorite}
+      onedit={handleRecipeEdit}
+      ondelete={handleRecipeDelete}
     ></recipe-list>
   </div>
 </section>
@@ -155,94 +154,20 @@
     font-size: 2rem;
   }
 
-  .new-button,
-  .secondary,
-  .danger {
+  .new-button {
     border: none;
     border-radius: 8px;
     padding: 0.65rem 0.9rem;
     font: inherit;
     cursor: pointer;
-  }
-
-  .new-button {
     background: #111827;
     color: #fff;
-  }
-
-  .secondary {
-    background: #e5e7eb;
-    color: #111827;
-  }
-
-  .danger {
-    background: #fee2e2;
-    color: #991b1b;
   }
 
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
     gap: 1.25rem;
-  }
-
-  .form-panel,
-  .list-panel {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 1rem;
-  }
-
-  .list-panel h2 {
-    margin: 0 0 1rem;
-    font-size: 1.1rem;
-  }
-
-  .empty-state {
-    color: #6b7280;
-    margin: 0;
-  }
-
-  .recipe-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .recipe-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.8rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #f9fafb;
-  }
-
-  .recipe-list li.active {
-    border-color: #f59e0b;
-    background: #fff7ed;
-  }
-
-  .recipe-list strong,
-  .recipe-list small {
-    display: block;
-  }
-
-  .recipe-list small {
-    color: #6b7280;
-    margin-top: 4px;
-  }
-
-  .item-actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
   }
 
   @media (max-width: 800px) {

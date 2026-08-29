@@ -1,19 +1,20 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { fetchRecipes, updateRecipe, fetchCategoryOptions, type Recipe } from '$lib/api';
+  import { showToast } from '$lib/helpers/utils';
 
-  let recipeFormEl: any = null;
-  let loading = true;
-  let error = '';
-  let recipe: Recipe | null = null;
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+  let recipeFormEl = $state<any>(null);
+  let loading = $state(true);
+  let error = $state('');
+  let recipe = $state<Recipe | null>(null);
+  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
 
   async function load() {
     loading = true;
     try {
-      const id = $page.params.id;
+      const id = page.params.id;
       const recipes = await fetchRecipes();
       recipe = recipes.find(r => r.id === id) ?? null;
       categoryOptions = await fetchCategoryOptions();
@@ -32,12 +33,16 @@
     const payload = (e as CustomEvent<any>).detail;
     if (!payload) return;
 
+    if (payload.subcategory_id === 'all' || payload.subcategory_id === '') {
+      payload.subcategory_id = null;
+    }
     try {
       await updateRecipe(payload.id, payload);
+      showToast('Recipe updated successfully!', 'success');
       goto('/my-recipes');
     } catch (err) {
       console.error('Update error', err);
-      alert('Failed to update recipe');
+      showToast('Failed to update recipe.', 'error');
     }
   }
 </script>
@@ -49,7 +54,7 @@
 {:else}
   <section class="page">
     <h1>Edit Recipe</h1>
-    <recipe-form bind:this={recipeFormEl} recipe={recipe} on:save={handleSave} categories={categoryOptions}></recipe-form>
+    <recipe-form bind:this={recipeFormEl} recipe={recipe} onsave={handleSave} categories={categoryOptions}></recipe-form>
   </section>
 {/if}
 

@@ -4,155 +4,110 @@
     fetchRecipes,
     fetchFavorites,
     toggleFavorite,
-    fetchMealPlan,
     fetchCategoryOptions,
     deleteRecipe,
     type Recipe,
   } from "$lib/api";
-  import { goto } from '$app/navigation';
+  import { goto } from "$app/navigation";
+  import { getUserId, showToast } from "$lib/helpers/utils";
 
-  let recipes: Recipe[] = [];
-  let selectedRecipe: Recipe | null = null;
-  let favorites: Set<string> = new Set();
-  let mealPlan: any = null;
+  let recipes = $state<Recipe[]>([]);
+  let selectedRecipe = $state<Recipe | null>(null);
+  let favorites = $state<Set<string>>(new Set());
 
-  let isLoading = true;
-  let error = "";
-  let userId = "";
+  let isLoading = $state(true);
+  let error = $state("");
+  let userId = $state("");
 
-  let searchTerm = "";
-  let selectedCategory = "all";
-  let selectedSubcategory = "all";
-  let categoryOptions: Array<{ id: string; name: string; parent_id: string | null }> = [];
+  let searchTimeout: ReturnType<typeof setTimeout>;
 
-  let recipeListEl: any = null;
+  let searchTerm = $state("");
+  let selectedCategory = $state("all");
+  let selectedSubcategory = $state("all");
+  let categoryOptions = $state<
+    Array<{ id: string; name: string; parent_id: string | null }>
+  >([]);
 
-  let recipeDetailEl: any = null;
+  let recipeListEl = $state<any>(null);
+  let recipeDetailEl = $state<any>(null);
+  const subcategoryDisabled = $derived(!selectedCategory);
 
-  function categoryIdOf(value: any): string {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') return String(value.id ?? value.category_id ?? '').trim();
-    return String(value).trim();
+  function handleSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      loadRecipes();
+    }, 300);
   }
 
-  function categoryNameOf(value: any): string {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') return String(value.name ?? value.category_name ?? value.id ?? '').trim();
-    return String(value).trim();
-  }
-
-  $: categoryList = [
+  const categoryList = $derived.by(() => [
     { id: "all", name: "All categories" },
     ...Array.from(
       new Set(
         categoryOptions.length
-          ? categoryOptions
-              .filter((item) => !item.parent_id)
-              .map((item) => JSON.stringify({ id: item.id, name: item.name }))
-          : recipes.map((r) => JSON.stringify({ id: categoryIdOf(r.category), name: categoryNameOf(r.category) })).filter(Boolean)
-      )
-    )
-      .map((value) => JSON.parse(value))
-      .filter((item) => item.id || item.name)
-  ];
+          ? categoryOptions.filter((item) => !item.parent_id)
+          : [],
+      ),
+    ),
+  ]);
 
-  $: selectedCategoryRow =
+  const selectedCategoryRow = $derived.by(() =>
     selectedCategory === "all"
       ? null
-      : categoryOptions.find((item) => item.id === selectedCategory) ?? null;
+      : (categoryOptions.find((item) => item.id === selectedCategory) ?? null),
+  );
 
-  $: selectedSubcategoryRow =
-    selectedSubcategory === "all"
-      ? null
-      : categoryOptions.find((item) => item.id === selectedSubcategory) ?? null;
+  const filteredSubcategories = $derived.by(() => [
+    { id: "all", name: "All subcategories" },
+    ...Array.from(
+      new Set(
+        categoryOptions.length
+          ? selectedCategory === "all"
+            ? categoryOptions.filter((item) => item.parent_id)
+            : categoryOptions.filter(
+                (item) => item.parent_id === selectedCategoryRow?.id,
+              )
+          : [],
+      ),
+    ),
+  ]);
 
-  $: filteredSubcategories =
-    selectedCategory === "all"
-      ? [
-          { id: "all", name: "All subcategories" },
-          ...Array.from(
-            new Set(
-              categoryOptions.length
-                ? categoryOptions
-                    .filter((item) => item.parent_id)
-                    .map((item) => JSON.stringify({ id: item.id, name: item.name }))
-                : recipes.map((r) => JSON.stringify({ id: categoryIdOf(r.subcategory), name: categoryNameOf(r.subcategory) })).filter(Boolean)
-            )
-          )
-            .map((value) => JSON.parse(value))
-            .filter((item) => item.id || item.name)
-        ]
-      : [
-          { id: "all", name: "All subcategories" },
-          ...Array.from(
-            new Set(
-              categoryOptions.length
-                ? categoryOptions
-                    .filter((item) => item.parent_id === selectedCategoryRow?.id)
-                    .map((item) => JSON.stringify({ id: item.id, name: item.name }))
-                : recipes
-                    .filter((r) => categoryIdOf(r.category) === selectedCategory || (selectedCategoryRow && categoryNameOf(r.category) === selectedCategoryRow.name))
-                    .map((r) => JSON.stringify({ id: categoryIdOf(r.subcategory), name: categoryNameOf(r.subcategory) }))
-                    .filter(Boolean)
-            )
-          )
-            .map((value) => JSON.parse(value))
-            .filter((item) => item.id || item.name)
-        ];
-
-  $: subcategoryDisabled = selectedCategory === "all";
-
-  $: filteredRecipes = recipes.filter((recipe) => {
-    const matchesCategory =
-      selectedCategory === "all" ||
-      categoryIdOf(recipe.category_id) === selectedCategory ||
-      (selectedCategoryRow && categoryNameOf(recipe.category?.name) === selectedCategoryRow.name);
-
-    const matchesSubcategory =
-      selectedSubcategory === "all" ||
-      categoryIdOf(recipe.subcategory_id) === selectedSubcategory ||
-      (selectedSubcategoryRow && categoryNameOf(recipe.subcategory?.name) === selectedSubcategoryRow.name);
-
-      return matchesCategory && matchesSubcategory;
+  $effect(() => {
+    if (selectedCategoryRow) {
+      loadRecipes();
+    }
   });
 
-  $: if (recipeListEl) {
-    recipeListEl.recipes = filteredRecipes;
+  $effect(() => {
+    if (!recipeListEl) return;
+    recipeListEl.recipes = recipes.map((r) => ({
+      ...r,
+      isOwner: r.createdBy === userId,
+    }));
     recipeListEl.layout = "grid";
     recipeListEl.favoriteIds = [...favorites];
-  }
+  });
 
-  $: if (recipeDetailEl) {
-    recipeDetailEl.recipe = selectedRecipe ?? undefined;
-  }
-
-  $: if (filteredRecipes.length) {
-    const selectedId = selectedRecipe?.id ?? null;
-
-    if (!selectedId || !filteredRecipes.some((r) => r.id === selectedId)) {
-      selectedRecipe = filteredRecipes[0];
+  $effect(() => {
+    if (recipeDetailEl) {
+      recipeDetailEl.recipe = selectedRecipe ?? undefined;
     }
-  } else {
-    selectedRecipe = null;
-  }
+  });
 
-  function genUserId() {
-    const existing = localStorage.getItem("rp_user");
+  $effect(() => {
+    if (recipes.length) {
+      const selectedId = selectedRecipe?.id ?? null;
 
-    if (existing) {
-      return existing;
+      if (!selectedId || !recipes.some((r) => r.id === selectedId)) {
+        selectedRecipe = recipes[0];
+      }
+    } else {
+      selectedRecipe = null;
     }
-
-    const id = "user_" + Math.random().toString(36).slice(2, 9);
-    localStorage.setItem("rp_user", id);
-    return id;
-  }
+  });
 
   const handleOpen = (event: Event) => {
     const id = (event as CustomEvent<string>).detail;
-    const match = filteredRecipes.find((r) => r.id === id);
+    const match = recipes.find((r) => r.id === id);
 
     if (match) {
       selectedRecipe = match;
@@ -161,9 +116,9 @@
 
   const handleFavorite = async (event: Event) => {
     const id = (event as CustomEvent<string>).detail;
-
+    const isFavorite = favorites.has(id);
     try {
-      await toggleFavorite(userId, id);
+      await toggleFavorite(userId, id, isFavorite);
 
       const nextFavorites = new Set(favorites);
       if (nextFavorites.has(id)) {
@@ -173,9 +128,9 @@
       }
 
       favorites = nextFavorites;
-      localStorage.setItem("rp_favs", JSON.stringify([...favorites]));
+      showToast(`${isFavorite ? "Removed from" : "Added to"} favorites`, "success");
     } catch (e) {
-      console.error("[Page] Favorite error:", e);
+      showToast(`Failed to ${isFavorite ? "remove from" : "add to"} favorites`, "error");
     }
   };
 
@@ -191,9 +146,18 @@
 
     try {
       await deleteRecipe(id);
-      await loadAll();
+      const isFavorite = favorites.has(id);
+      if (isFavorite) {
+        await toggleFavorite(userId, id, true); // Remove from favorites if it was a favorite
+        const nextFavorites = new Set(favorites);
+        nextFavorites.delete(id);
+        favorites = nextFavorites;
+      }
+      loadRecipes();
+      showToast("Recipe deleted successfully!", "success");
     } catch (e) {
       console.error("[Page] Delete error:", e);
+      showToast("Failed to delete recipe.", "error");
     }
   };
 
@@ -201,33 +165,44 @@
     try {
       isLoading = true;
       error = "";
-
-      const fetchedCategories = await fetchCategoryOptions();
-      categoryOptions = fetchedCategories;
-
-      recipes = await fetchRecipes();
-
-      if (recipes.length) {
-        selectedRecipe = recipes[0];
-      }
-
-      const favs = await fetchFavorites(userId);
-      favorites = new Set(favs);
-
-      mealPlan = await fetchMealPlan(userId);
+      loadRecipes();
+      loadFavorites();
+      loadCategories();
     } catch (e) {
       console.error("[Page] loadAll() error:", e);
-      error = e instanceof Error ? e.message : "Failed to load application data";
+      showToast("Failed to load application data.", "error");
+      error =
+        e instanceof Error ? e.message : "Failed to load application data";
     } finally {
       isLoading = false;
     }
   }
 
+  async function loadRecipes() {
+    recipes = await fetchRecipes(
+      searchTerm,
+      selectedCategory,
+      selectedSubcategory,
+    );
+    if (recipes.length) {
+      selectedRecipe = recipes[0];
+    }
+  }
+
+  async function loadFavorites() {
+    const favs = await fetchFavorites(userId);
+    favorites = new Set(favs.map((r) => r.id));
+  }
+
+  async function loadCategories() {
+    const fetchedCategories = await fetchCategoryOptions();
+    categoryOptions = fetchedCategories;
+  }
+
   onMount(() => {
-    userId = genUserId();
+    userId = getUserId();
     loadAll();
   });
-   $: console.log("recipeDetailEl:", filteredRecipes);
 </script>
 
 <svelte:head>
@@ -258,17 +233,24 @@
       </ul>
     </div>
   {:else}
-    <p>Favorites: {favorites.size}</p>
-
     <div class="filters">
       <label>
-        <span>Search</span>
-        <input bind:value={searchTerm} type="search" placeholder="Search recipes" />
+        <span>Search recipes</span>
+        <input
+          name="search-recipes"
+          bind:value={searchTerm}
+          oninput={handleSearch}
+          type="search"
+          placeholder="Search recipes"
+        />
       </label>
 
       <label>
         <span>Category</span>
-        <select bind:value={selectedCategory} on:change={() => (selectedSubcategory = "all")}>
+        <select
+          bind:value={selectedCategory}
+          onchange={() => (selectedSubcategory = "all")}
+        >
           {#each categoryList as category}
             <option value={category.id}>{category.name}</option>
           {/each}
@@ -287,10 +269,11 @@
 
     <recipe-list
       bind:this={recipeListEl}
-      on:open={handleOpen}
-      on:favorite={handleFavorite}
-      on:edit={handleEdit}
-      on:delete={handleDelete}
+      layout="grid"
+      onopen={handleOpen}
+      onfavorite={handleFavorite}
+      onedit={handleEdit}
+      ondelete={handleDelete}
     ></recipe-list>
   {/if}
 </section>
@@ -300,7 +283,6 @@
     max-width: 1100px;
     margin: 0 auto;
     padding: 32px 20px 80px;
-    font-family: Arial, sans-serif;
     color: #1f2937;
   }
 
@@ -337,14 +319,6 @@
     background: #f3f4f6;
     cursor: not-allowed;
     opacity: 0.7;
-  }
-
-  .panel {
-    margin-top: 24px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 18px;
   }
 
   .loading {

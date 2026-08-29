@@ -29,7 +29,6 @@ export { supabase };
 export type DbRecipe = {
   id: string;
   title: string;
-  summary?: string;
   image?: string;
   description?: string;
   ingredients?: string[];
@@ -38,8 +37,6 @@ export type DbRecipe = {
   subcategory_id?: string | null;
   category?: { id: string; name: string } | null;
   subcategory?: { id: string; name: string } | null;
-  category_name?: string | null;
-  subcategory_name?: string | null;
   is_deleted: boolean;
   created_by?: string | null;
   created_at?: string;
