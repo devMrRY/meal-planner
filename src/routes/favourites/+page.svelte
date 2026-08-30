@@ -11,6 +11,10 @@
   let recipeListEl = $state<any>(null);
   let isLoadingMore = $state(false);
   let isLoading = $state(false);
+  let currentPage = $state(1);
+  let hasMore = $state(true);
+
+  const pageSize = 10;
 
   const handleFavorite = async (event: Event) => {
     const id = (event as CustomEvent<string>).detail;
@@ -47,7 +51,9 @@
   async function loadFavorites() {
     if (!userId) return;
     isLoading = true;
-    const favoriteRecipes = await fetchFavorites(userId);
+    const favoriteRecipes = await fetchFavorites(userId, 1, pageSize);
+    currentPage = 1;
+    hasMore = favoriteRecipes.length === pageSize;
     favoriteIds = favoriteRecipes.map((r) => r.id);
     userRecipes = favoriteRecipes;
 
@@ -65,18 +71,27 @@
   }
 
   const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+
     isLoadingMore = true;
-    const newRecipes = await fetchFavorites(
-      userId,
-      Math.floor(userRecipes.length / 10) + 1,
-    );
+    const nextPage = currentPage + 1;
+    const newRecipes = await fetchFavorites(userId, nextPage, pageSize);
+
+    if (newRecipes.length === 0) {
+      hasMore = false;
+      isLoadingMore = false;
+      return;
+    }
+
     userRecipes = [...userRecipes, ...newRecipes];
+    currentPage = nextPage;
+    hasMore = newRecipes.length === pageSize;
     isLoadingMore = false;
   };
 
   onMount(async () => {
     userId = getUserId();
-    loadFavorites();
+    await loadFavorites();
   });
 
   function setRecipeListProps(el: any) {
@@ -117,11 +132,13 @@
         hide-actions={true}
         onfavorite={handleFavorite}
       ></recipe-list>
-      <div class="load-more-container">
-        <button onclick={handleLoadMore} disabled={isLoadingMore}>
-          {isLoadingMore ? "Loading..." : "Load More"}
-        </button>
-      </div>
+      {#if hasMore}
+        <div class="load-more-container">
+          <button onclick={handleLoadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? "Loading..." : "Load More"}
+          </button>
+        </div>
+      {/if}
     {/if}
   </div>
 </section>

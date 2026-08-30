@@ -1,35 +1,36 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { onMount } from 'svelte';
-  import { fetchCategoryOptions, fetchRecipes, type Recipe } from '$lib/api';
+  import { page } from "$app/state";
+  import { onMount } from "svelte";
+  import { fetchCategoryOptions, fetchRecipeById, type Recipe } from "$lib/api";
 
   let recipe = $state<Recipe | null>(null);
-  let categoryOptions = $state<Array<{ id: string; name: string; parent_id: string | null }>>([]);
+  let categoryOptions = $state<
+    Array<{ id: string; name: string; parent_id: string | null }>
+  >([]);
   let loading = $state(true);
-  let error = $state('');
+  let error = $state("");
 
-  function getDisplayName(value: any, fallback = 'General') {
+  function getDisplayName(value: any, fallback = "General") {
     if (!value) return fallback;
-    if (typeof value === 'string') return value || fallback;
+    if (typeof value === "string") return value || fallback;
     return value.name || value.id || fallback;
   }
 
   async function loadRecipe() {
     loading = true;
-    error = '';
+    error = "";
 
     try {
       categoryOptions = await fetchCategoryOptions();
       const recipeId = page.params.recipe_id;
-      const recipes = await fetchRecipes();
-      recipe = recipes.find((item) => item.id === recipeId) ?? null;
+      recipe = await fetchRecipeById(recipeId);
 
       if (!recipe) {
-        error = 'Recipe not found.';
+        error = "Recipe not found.";
       }
     } catch (e) {
-      console.error('[RecipeViewPage] load error:', e);
-      error = 'Unable to load recipe.';
+      console.error("[RecipeViewPage] load error:", e);
+      error = "Unable to load recipe.";
     } finally {
       loading = false;
     }
@@ -57,13 +58,25 @@
   {:else if recipe}
     <article class="recipe-detail">
       <div class="hero">
-        <img src={recipe.image || 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80'} alt={recipe.title} />
+        <img
+          src={recipe.image || "/images/recipe-placeholder.png"}
+          alt={recipe.title}
+          onerror={(event) => {
+            const img = event.target as HTMLImageElement;
+            img.src = "/images/recipe-placeholder.png";
+          }}
+        />
       </div>
 
       <div class="content">
         <div class="header-row">
           <div>
-            <p class="eyebrow">{getDisplayName(recipe.category, 'General')} / {getDisplayName(recipe.subcategory, 'General')}</p>
+            <p class="eyebrow">
+              {getDisplayName(recipe.category, "General")} / {getDisplayName(
+                recipe.subcategory,
+                "General",
+              )}
+            </p>
             <h1>{recipe.title}</h1>
           </div>
           <a href="/" class="back-link">Back</a>
@@ -71,7 +84,7 @@
 
         <div class="section">
           <h2>Description</h2>
-          <p>{recipe.description || 'No description provided.'}</p>
+          <p>{recipe.description || "No description provided."}</p>
         </div>
 
         <div class="section">

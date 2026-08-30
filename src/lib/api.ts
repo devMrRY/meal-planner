@@ -76,22 +76,30 @@ export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
 }
 
 export async function fetchRecipes(
-  searchTerm?: string,
+  searchTerm?: string | null,
   categoryId?: string | null,
   subcategoryId?: string | null,
+  userId?: string | null,
   page = 1,
   pageSize = 10,
-): Promise<Recipe[]> {
+): Promise<{ recipes: Recipe[]; count: number }> {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   let query = supabase
     .from("recipes")
     .select(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
+      { count: "exact" }
     )
     .eq("is_deleted", false)
     .range(from, to)
     .order("updated_at", { ascending: false });
+
+  if (userId) {
+    query = query.or(`created_by.is.null,created_by.eq.${userId}`);
+  } else {
+    query = query.is("created_by", null);
+  }
 
   if (searchTerm?.trim()) {
     query = query.ilike("title", `%${searchTerm.trim()}%`);
@@ -105,18 +113,45 @@ export async function fetchRecipes(
     query = query.eq("subcategory_id", subcategoryId);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
 
   if (error) {
     console.error("[API] Fetch recipes error:", error);
-    return [];
+    return { recipes: [], count: 0 };
   }
 
   const recipes = ((data as DbRecipe[] | null) || []).map(toRecipe);
-  return recipes;
+  return { recipes, count };
 }
 
-export async function fetchUserRecipes(userId: string, page: number = 1, pageSize: number = 10): Promise<Recipe[]> {
+export async function fetchRecipeById(id: string, userId?: string): Promise<Recipe | null> {
+  let query = supabase
+    .from("recipes")
+    .select(
+      "*, category:category_id(id, name), subcategory:subcategory_id(id, name)"
+    )
+    .eq("id", id)
+    .eq("is_deleted", false)
+    .single();
+
+  if (userId) {
+    query.eq("created_by", userId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[API] Fetch recipe by ID error:", error);
+    return null;
+  }
+
+  return data ? toRecipe(data) : null;
+}
+
+export async function fetchUserRecipes(
+  userId: string,
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<Recipe[]> {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -166,6 +201,7 @@ export async function createRecipe(
 export async function updateRecipe(
   id: string,
   updates: Partial<Recipe>,
+  userId: string,
 ): Promise<Recipe> {
   const payload: Partial<DbRecipe> = {
     title: updates.title,
@@ -184,6 +220,7 @@ export async function updateRecipe(
     .update(payload)
     .eq("is_deleted", false)
     .eq("id", id)
+    .eq("created_by", userId)
     .select(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
     )
@@ -192,17 +229,23 @@ export async function updateRecipe(
   return toRecipe(data as DbRecipe);
 }
 
-export async function deleteRecipe(id: string): Promise<void> {
+export async function deleteRecipe(id: string, userId: string): Promise<void> {
   const { error } = await supabase
     .from("recipes")
     .update({ is_deleted: true })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("is_deleted", false)
+    .eq("created_by", userId);
 
   if (error) throw error;
 }
 
 // Favorites table: favorites(user_id, recipe_id)
-export async function fetchFavorites(userId: string, page: number = 1, pageSize: number = 10): Promise<Recipe[]> {
+export async function fetchFavorites(
+  userId: string,
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<Recipe[]> {
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -296,6 +339,7 @@ export async function updateMealPlan(entry: {
   id: string;
   recipe_id: string;
   updated_at: string;
+  userId: string;
 }): Promise<void> {
   const payload = {
     recipe_id: entry.recipe_id,
@@ -304,22 +348,37 @@ export async function updateMealPlan(entry: {
   const { error } = await supabase
     .from("meal_plans")
     .update(payload)
-    .eq("id", entry.id);
+    .eq("id", entry.id)
+    .eq("user_id", entry.userId);
 
   if (error) {
     console.warn("[API] Update meal plan error:", error);
   }
 }
 
-export async function clearMealPlansForDate(date: string): Promise<void> {
-  const { error } = await supabase.from("meal_plans").delete().eq("date", date);
+export async function clearMealPlansForDate(
+  date: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("meal_plans")
+    .delete()
+    .eq("date", date)
+    .eq("user_id", userId);
   if (error) {
     console.warn("[API] Clear meal plans for date error:", error);
   }
 }
 
-export async function deleteMealPlan(id: string): Promise<void> {
-  const { error } = await supabase.from("meal_plans").delete().eq("id", id);
+export async function deleteMealPlan(
+  id: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("meal_plans")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) {
     console.warn("[API] Delete meal plan error:", error);
   }

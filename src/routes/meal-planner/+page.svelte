@@ -10,12 +10,15 @@
     clearWeek,
   } from "$lib/api";
   import { getCurrentDate, getUserId, showToast } from "$lib/helpers/utils";
+  import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
 
   let planner: HTMLElement;
   let userId = $state("");
   let modalOpen = $state(false);
   let searchQuery = $state("");
   let loadingRecipes = $state(false);
+  let clearTarget = $state<{ type: "day" | "week"; date?: string } | null>(null);
+  let deleteTarget = $state<{ id: string; title: string } | null>(null);
   let editingRecipe = $state<{
     id: string;
     date: string;
@@ -66,10 +69,10 @@
 
   function handleSearch() {
     clearTimeout(searchTimeout);
-
     searchTimeout = setTimeout(() => {
+      console.log("Searching for recipes with query:", searchQuery);
       loadRecipes();
-    }, 300);
+    }, 1000);
   }
 
   async function loadMealPlan() {
@@ -93,7 +96,7 @@
   async function loadRecipes() {
     loadingRecipes = true;
     try {
-      const recipes = await fetchRecipes(searchQuery);
+      const { recipes } = await fetchRecipes(searchQuery);
       availableRecipes = recipes.map((r) => ({
         id: r.id,
         title: r.title,
@@ -107,6 +110,12 @@
       loadingRecipes = false;
     }
   }
+
+  $effect(() => {
+    if (modalOpen) {
+      loadRecipes();
+    }
+  });
 
   onMount(() => {
     userId = getUserId();
@@ -171,6 +180,7 @@
           id: nextEntry.id,
           recipe_id: nextEntry.recipeId,
           updated_at: new Date().toISOString(),
+          userId: userId,
         });
         showToast(`Updated ${recipe.title} for ${formatDayLabel(nextEntry.date)}.`, "success");
       } else {
@@ -232,46 +242,78 @@
   }
 
   function ondeleteRecipe(event: CustomEvent) {
-    deleteMealPlan(event.detail.id)
-      .then(() => {
-        mealPlans = mealPlans.filter((meal) => meal.id !== event.detail.id);
-        showToast("Meal removed.", "success");
-      })
-      .catch((err) => {
-        console.error("Failed to delete recipe", err);
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast("Unable to delete meal.", "error");
-        }
-      });
+    const meal = event.detail;
+    if (!meal?.id) return;
+
+    deleteTarget = {
+      id: meal.id,
+      title: meal.recipeName || "this meal",
+    };
+  }
+
+  function cancelDeleteMeal() {
+    deleteTarget = null;
+  }
+
+  async function confirmDeleteMeal() {
+    if (!deleteTarget) return;
+
+    const mealId = deleteTarget.id;
+
+    try {
+      await deleteMealPlan(mealId, userId);
+      mealPlans = mealPlans.filter((meal) => meal.id !== mealId);
+      showToast("Meal removed.", "success");
+    } catch (err) {
+      console.error("Failed to delete recipe", err);
+      if (typeof window !== "undefined" && window.showToast) {
+        window.showToast("Unable to delete meal.", "error");
+      }
+    } finally {
+      deleteTarget = null;
+    }
   }
 
   function clearDay(event: CustomEvent) {
     const date = event.detail;
-    clearMealPlansForDate(date)
-      .then(() => {
-        mealPlans = mealPlans.filter((meal) => meal.date !== date);
-        showToast(`Meals cleared for ${formatDayLabel(date)}.`, "success");
-      })
-      .catch((err) => {
-        console.error("Failed to clear meals for date", err);
-        showToast("Unable to clear meals for this day.", "error");
-      });
+    clearTarget = { type: "day", date };
   }
 
   function onclearWeek() {
+    clearTarget = { type: "week" };
+  }
+
+  function cancelClear() {
+    clearTarget = null;
+  }
+
+  function confirmClear() {
+    if (!clearTarget) return;
+
+    if (clearTarget.type === "day" && clearTarget.date) {
+      const targetDate = clearTarget.date;
+
+      clearMealPlansForDate(targetDate, userId)
+        .then(() => {
+          mealPlans = mealPlans.filter((meal) => meal.date !== targetDate);
+          showToast(`Meals cleared for ${formatDayLabel(targetDate)}.`, "success");
+          clearTarget = null;
+        })
+        .catch((err) => {
+          console.error("Failed to clear meals for date", err);
+          showToast("Unable to clear meals for this day.", "error");
+          clearTarget = null;
+        });
+      return;
+    }
+
     const currentDate = new Date();
-
-    const day = currentDate.getDay(); // Sun=0, Mon=1, ..., Sat=6
-
-    // Days to go back to Monday
+    const day = currentDate.getDay();
     const diffToMonday = day === 0 ? -6 : 1 - day;
-
     const startDate = new Date(currentDate);
     startDate.setDate(currentDate.getDate() + diffToMonday);
-
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-
     const startDateString = startDate.toISOString().split("T")[0];
     const endDateString = endDate.toISOString().split("T")[0];
 
@@ -279,9 +321,10 @@
       .then(() => {
         mealPlans = [];
         showToast("This week was cleared.", "success");
+        clearTarget = null;
       })
       .catch((err) => {
-        console.error("Failed to clear meals for date", err);
+        console.error("Failed to clear meals for the week", err);
         showToast("Unable to clear the week.", "error");
       });
   }
@@ -302,7 +345,7 @@
   oneditRecipe={editRecipe}
   {ondeleteRecipe}
   onclearDay={clearDay}
-  {onclearWeek}
+  onclearWeek={onclearWeek}
 >
 </meal-planner>
 
@@ -351,6 +394,36 @@
     </div>
   </div>
 </app-modal>
+
+<ConfirmDeleteModal
+  open={deleteTarget !== null}
+  title="Delete meal"
+  confirmLabel="Delete"
+  onConfirm={confirmDeleteMeal}
+  onCancel={cancelDeleteMeal}
+>
+  <p>
+    Are you sure you want to delete
+    <strong>{deleteTarget?.title ?? "this meal"}</strong>?
+  </p>
+</ConfirmDeleteModal>
+
+<ConfirmDeleteModal
+  open={clearTarget !== null}
+  title={clearTarget?.type === "day" ? "Clear day" : "Clear week"}
+  confirmLabel={clearTarget?.type === "day" ? "Clear" : "Clear week"}
+  onConfirm={confirmClear}
+  onCancel={cancelClear}
+>
+  {#if clearTarget?.type === "day" && clearTarget.date}
+    <p>
+      Are you sure you want to clear all meals for
+      <strong>{formatDayLabel(clearTarget.date)}</strong>?
+    </p>
+  {:else}
+    <p>Are you sure you want to clear the entire week?</p>
+  {/if}
+</ConfirmDeleteModal>
 
 <style>
   .modal-content {
