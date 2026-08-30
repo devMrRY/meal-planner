@@ -3,9 +3,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [sveltekit()],
-  server: {
-    fs: {
-      allow: ['..']
-    }
-  }
+
+  ssr: {
+    noExternal: ['@reticentrahul/recipe-planner'],
+  },
 });
