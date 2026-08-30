@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { supabase } from "$lib/supabase";
   import {
     fetchMealPlan,
     saveMealPlan,
@@ -10,7 +9,7 @@
     clearMealPlansForDate,
     clearWeek,
   } from "$lib/api";
-  import { getCurrentDate, getUserId } from "$lib/helpers/utils";
+  import { getCurrentDate, getUserId, showToast } from "$lib/helpers/utils";
 
   let planner: HTMLElement;
   let userId = $state("");
@@ -173,10 +172,7 @@
           recipe_id: nextEntry.recipeId,
           updated_at: new Date().toISOString(),
         });
-
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast(`Updated ${recipe.title} for ${formatDayLabel(nextEntry.date)}.`, "success");
-        }
+        showToast(`Updated ${recipe.title} for ${formatDayLabel(nextEntry.date)}.`, "success");
       } else {
         nextEntry = {
           id: recipe.id,
@@ -198,10 +194,7 @@
             updated_at: new Date().toISOString(),
           });
         }
-
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast(`${recipe.title} added to ${formatDayLabel(nextEntry.date)} (${nextEntry.mealType}).`, "success");
-        }
+        showToast(`Added ${recipe.title} for ${formatDayLabel(nextEntry.date)} (${nextEntry.mealType}).`, "success");
       }
 
       mealPlans = mealPlans.filter(
@@ -242,10 +235,7 @@
     deleteMealPlan(event.detail.id)
       .then(() => {
         mealPlans = mealPlans.filter((meal) => meal.id !== event.detail.id);
-        console.log("Deleted recipe from meal plan", event.detail);
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast("Meal removed.", "success");
-        }
+        showToast("Meal removed.", "success");
       })
       .catch((err) => {
         console.error("Failed to delete recipe", err);
@@ -260,16 +250,11 @@
     clearMealPlansForDate(date)
       .then(() => {
         mealPlans = mealPlans.filter((meal) => meal.date !== date);
-        console.log("Cleared meals for date", date);
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast(`Meals cleared for ${formatDayLabel(date)}.`, "success");
-        }
+        showToast(`Meals cleared for ${formatDayLabel(date)}.`, "success");
       })
       .catch((err) => {
         console.error("Failed to clear meals for date", err);
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast("Unable to clear meals for this day.", "error");
-        }
+        showToast("Unable to clear meals for this day.", "error");
       });
   }
 
@@ -293,16 +278,11 @@
     clearWeek(userId, startDateString, endDateString)
       .then(() => {
         mealPlans = [];
-        console.log("Cleared meals for Week");
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast("This week was cleared.", "success");
-        }
+        showToast("This week was cleared.", "success");
       })
       .catch((err) => {
         console.error("Failed to clear meals for date", err);
-        if (typeof window !== "undefined" && window.showToast) {
-          window.showToast("Unable to clear the week.", "error");
-        }
+        showToast("Unable to clear the week.", "error");
       });
   }
 
