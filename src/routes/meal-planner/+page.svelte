@@ -9,15 +9,30 @@
     clearMealPlansForDate,
     clearWeek,
   } from "$lib/api";
-  import { getCurrentDate, getUserId, showToast } from "$lib/helpers/utils";
+  import {
+    debounce,
+    getCurrentDate,
+    getUserId,
+    showToast,
+  } from "$lib/helpers/utils";
   import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
+
+  interface IRecipe {
+    id: string;
+    title: string;
+    category: string;
+    description: string;
+    image: string;
+  }
 
   let planner: HTMLElement;
   let userId = $state("");
   let modalOpen = $state(false);
   let searchQuery = $state("");
   let loadingRecipes = $state(false);
-  let clearTarget = $state<{ type: "day" | "week"; date?: string } | null>(null);
+  let clearTarget = $state<{ type: "day" | "week"; date?: string } | null>(
+    null,
+  );
   let deleteTarget = $state<{ id: string; title: string } | null>(null);
   let editingRecipe = $state<{
     id: string;
@@ -29,7 +44,6 @@
     date: "",
     mealType: "",
   });
-  let searchTimeout: ReturnType<typeof setTimeout>;
 
   let mealPlans = $state<
     Array<{
@@ -67,30 +81,23 @@
     }),
   );
 
-  function handleSearch() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      console.log("Searching for recipes with query:", searchQuery);
-      loadRecipes();
-    }, 1000);
-  }
+  const handleSearch = debounce(loadRecipes, 300);
 
   async function loadMealPlan() {
     if (!userId) return;
+    const { startDate, endDate } = getWeekDateRange();
 
-    const rows = await fetchMealPlan(userId);
+    const rows = await fetchMealPlan(userId, startDate, endDate);
 
-    if (rows.length) {
-      mealPlans = rows.map((entry) => ({
-        id: entry.id,
-        date: entry.date || "",
-        mealType: entry.meal_type || "breakfast",
-        recipeId: entry.recipe_id,
-        recipeName: entry.recipe?.title || "Saved recipe",
-        category: entry.recipe?.category?.name || "",
-        imageUrl: entry.recipe?.image || "",
-      }));
-    }
+    mealPlans = rows.map((entry) => ({
+      id: entry.id,
+      date: entry.date || "",
+      mealType: entry.meal_type || "breakfast",
+      recipeId: entry.recipe_id,
+      recipeName: entry.recipe?.title || "Saved recipe",
+      category: entry.recipe?.category?.name || "",
+      imageUrl: entry.recipe?.image || "",
+    }));
   }
 
   async function loadRecipes() {
@@ -144,81 +151,77 @@
     modalOpen = true;
   }
 
-  async function selectRecipe(
-    action: "edit" | "add",
-    recipe: {
-      id: string;
-      title: string;
-      category: string;
-      description: string;
-      image: string;
-    },
-  ) {
-    let nextEntry: {
-      id: string;
-      date: string;
-      mealType: string;
-      recipeId: string;
-      recipeName: string;
-      category: string;
-      imageUrl: string;
+  async function addMeal(recipe: IRecipe) {
+    if (!userId) return;
+    let nextEntry = {
+      id: recipe.id,
+      date: pendingMealSlot.date,
+      mealType: pendingMealSlot.mealType,
+      recipeId: recipe.id,
+      recipeName: recipe.title,
+      category: recipe.category,
+      imageUrl: recipe.image || "",
     };
+    await saveMealPlan({
+      user_id: userId,
+      meal_type: nextEntry.mealType,
+      recipe_id: nextEntry.recipeId,
+      updated_by: userId,
+      date: nextEntry.date,
+      updated_at: new Date().toISOString(),
+    });
+    showToast(
+      `Added ${recipe.title} for ${formatDayLabel(nextEntry.date)} (${nextEntry.mealType}).`,
+      "success",
+    );
+    mealPlans = mealPlans.filter(
+      (meal) =>
+        !(meal.date === nextEntry.date && meal.mealType === nextEntry.mealType),
+    );
 
+    mealPlans = [...mealPlans, nextEntry];
+  }
+
+  async function editMeal(recipe: IRecipe) {
+    if (!userId) return;
+    let nextEntry = {
+      id: editingRecipe!.id,
+      date: editingRecipe!.date,
+      mealType: editingRecipe!.mealType,
+      recipeId: recipe.id,
+      recipeName: recipe.title,
+      category: recipe.category,
+      imageUrl: recipe.image || "",
+    };
+    await updateMealPlan({
+      id: nextEntry.id,
+      recipe_id: nextEntry.recipeId,
+      updated_at: new Date().toISOString(),
+      userId: userId,
+    });
+    showToast(
+      `Updated ${recipe.title} for ${formatDayLabel(nextEntry.date)} (${nextEntry.mealType}).`,
+      "success",
+    );
+    mealPlans = mealPlans.filter(
+      (meal) =>
+        !(meal.date === nextEntry.date && meal.mealType === nextEntry.mealType),
+    );
+
+    mealPlans = [...mealPlans, nextEntry];
+  }
+
+  async function selectRecipe(action: "edit" | "add", recipe: IRecipe) {
     try {
       if (action === "edit") {
-        nextEntry = {
-          id: editingRecipe!.id,
-          date: editingRecipe!.date,
-          mealType: editingRecipe!.mealType,
-          recipeId: recipe.id,
-          recipeName: recipe.title,
-          category: recipe.category,
-          imageUrl: recipe.image || "",
-        };
-
-        await updateMealPlan({
-          id: nextEntry.id,
-          recipe_id: nextEntry.recipeId,
-          updated_at: new Date().toISOString(),
-          userId: userId,
-        });
-        showToast(`Updated ${recipe.title} for ${formatDayLabel(nextEntry.date)}.`, "success");
+        await editMeal(recipe);
       } else {
-        nextEntry = {
-          id: recipe.id,
-          date: pendingMealSlot.date,
-          mealType: pendingMealSlot.mealType,
-          recipeId: recipe.id,
-          recipeName: recipe.title,
-          category: recipe.category,
-          imageUrl: recipe.image || "",
-        };
-
-        if (userId) {
-          await saveMealPlan({
-            user_id: userId,
-            meal_type: nextEntry.mealType,
-            recipe_id: nextEntry.recipeId,
-            updated_by: userId,
-            date: nextEntry.date,
-            updated_at: new Date().toISOString(),
-          });
-        }
-        showToast(`Added ${recipe.title} for ${formatDayLabel(nextEntry.date)} (${nextEntry.mealType}).`, "success");
+        await addMeal(recipe);
       }
-
-      mealPlans = mealPlans.filter(
-        (meal) =>
-          !(meal.date === nextEntry.date && meal.mealType === nextEntry.mealType),
-      );
-
-      mealPlans = [...mealPlans, nextEntry];
       handleModalClose();
     } catch (error) {
       console.error("Failed to save meal plan:", error);
-      if (typeof window !== "undefined" && window.showToast) {
-        window.showToast("Unable to save meal plan. Please try again.", "error");
-      }
+      showToast("Unable to save meal plan. Please try again.", "error");
     }
   }
 
@@ -266,9 +269,7 @@
       showToast("Meal removed.", "success");
     } catch (err) {
       console.error("Failed to delete recipe", err);
-      if (typeof window !== "undefined" && window.showToast) {
-        window.showToast("Unable to delete meal.", "error");
-      }
+      showToast("Unable to delete meal.", "error");
     } finally {
       deleteTarget = null;
     }
@@ -287,6 +288,21 @@
     clearTarget = null;
   }
 
+  function getWeekDateRange(): { startDate: string; endDate: string } {
+    const currentDate = new Date();
+    const day = currentDate.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const startDate = new Date(currentDate);
+    startDate.setDate(currentDate.getDate() + diffToMonday);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    return {
+      startDate: startDate.toISOString().split("T")[0],
+      endDate: endDate.toISOString().split("T")[0],
+    };
+  }
+
   function confirmClear() {
     if (!clearTarget) return;
 
@@ -296,7 +312,10 @@
       clearMealPlansForDate(targetDate, userId)
         .then(() => {
           mealPlans = mealPlans.filter((meal) => meal.date !== targetDate);
-          showToast(`Meals cleared for ${formatDayLabel(targetDate)}.`, "success");
+          showToast(
+            `Meals cleared for ${formatDayLabel(targetDate)}.`,
+            "success",
+          );
           clearTarget = null;
         })
         .catch((err) => {
@@ -307,17 +326,9 @@
       return;
     }
 
-    const currentDate = new Date();
-    const day = currentDate.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const startDate = new Date(currentDate);
-    startDate.setDate(currentDate.getDate() + diffToMonday);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    const startDateString = startDate.toISOString().split("T")[0];
-    const endDateString = endDate.toISOString().split("T")[0];
+    const { startDate, endDate } = getWeekDateRange();
 
-    clearWeek(userId, startDateString, endDateString)
+    clearWeek(userId, startDate, endDate)
       .then(() => {
         mealPlans = [];
         showToast("This week was cleared.", "success");
@@ -345,7 +356,7 @@
   oneditRecipe={editRecipe}
   {ondeleteRecipe}
   onclearDay={clearDay}
-  onclearWeek={onclearWeek}
+  {onclearWeek}
 >
 </meal-planner>
 

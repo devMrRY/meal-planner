@@ -45,6 +45,10 @@
       showToast('Failed to update recipe.', 'error');
     }
   }
+
+  const handleCancel = () => {
+    history.back();
+  }
 </script>
 
 {#if loading}
@@ -54,7 +58,7 @@
 {:else}
   <section class="page">
     <h1>Edit Recipe</h1>
-    <recipe-form bind:this={recipeFormEl} recipe={recipe} onsave={handleSave} categories={categoryOptions}></recipe-form>
+    <recipe-form bind:this={recipeFormEl} recipe={recipe} oncancel={handleCancel} onsave={handleSave} categories={categoryOptions}></recipe-form>
   </section>
 {/if}
 

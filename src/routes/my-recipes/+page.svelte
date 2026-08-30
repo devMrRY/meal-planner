@@ -4,11 +4,11 @@
   import {
     deleteRecipe,
     fetchFavorites,
-    fetchUserRecipes,
+    fetchRecipes,
     toggleFavorite,
     type Recipe,
   } from "$lib/api";
-  import { getUserId, showToast } from "$lib/helpers/utils";
+  import { findRecipeTitle, getUserId, showToast } from "$lib/helpers/utils";
   import { EmptyRecipe } from "$lib/components";
   import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
 
@@ -27,12 +27,6 @@
 
   function cancelDelete() {
     recipeToDelete = null;
-  }
-
-  function getRecipeNameById(id: string | null) {
-    if (!id) return "";
-    const recipe = userRecipes.find((r) => r.id === id);
-    return recipe ? recipe.title : "";
   }
 
   async function confirmDelete() {
@@ -61,7 +55,14 @@
   async function reloadUserRecipes() {
     if (!userId) return;
 
-    const recipes = await fetchUserRecipes(userId, 1, pageSize);
+    const { recipes } = await fetchRecipes(
+      null,
+      null,
+      null,
+      userId,
+      1,
+      pageSize,
+    );
     currentPage = 1;
     hasMore = recipes.length === pageSize;
     userRecipes = recipes;
@@ -141,7 +142,14 @@
 
     isLoadingMore = true;
     const nextPage = currentPage + 1;
-    const newRecipes = await fetchUserRecipes(userId, nextPage, pageSize);
+    const { recipes: newRecipes } = await fetchRecipes(
+      null,
+      null,
+      null,
+      userId,
+      nextPage,
+      pageSize,
+    );
 
     if (newRecipes.length === 0) {
       hasMore = false;
@@ -230,7 +238,7 @@
   >
     <p>
       Are you sure you want to delete
-      <strong>{getRecipeNameById(recipeToDelete)}</strong>?
+      <strong>{findRecipeTitle(userRecipes, recipeToDelete)}</strong>?
     </p>
   </ConfirmDeleteModal>
 </section>

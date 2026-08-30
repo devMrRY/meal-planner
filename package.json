@@ -1,7 +1,7 @@
 {
   "name": "recipe-planner-consumer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -21,7 +21,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@reticentrahul/recipe-planner": "^1.0.6",
+    "@reticentrahul/recipe-planner": "^1.0.7",
     "@supabase/supabase-js": "^2.33.0"
   }
 }
