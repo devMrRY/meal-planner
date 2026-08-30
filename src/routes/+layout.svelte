@@ -30,14 +30,30 @@
     }, 3000);
   }
 
-  onMount(() => {
-    import('@reticentrahul/recipe-planner/meal-planner'),
-    import('@reticentrahul/recipe-planner/recipe-list'),
-    import('@reticentrahul/recipe-planner/recipe-card'),
-    import('@reticentrahul/recipe-planner/recipe-detail'),
-    import('@reticentrahul/recipe-planner/recipe-form'),
-    import('@reticentrahul/recipe-planner/app-modal')
+  function isActiveLink(href: string): boolean {
+    const currentPath = page.url.pathname.replace(/\/$/, "") || "/";
+    const normalizedHref = href.replace(/\/$/, "") || "/";
 
+    if (normalizedHref === "/") {
+      return currentPath === "/";
+    }
+
+    return (
+      currentPath === normalizedHref ||
+      currentPath.startsWith(`${normalizedHref}/`)
+    );
+  }
+
+  onMount(() => {
+    Promise.all([
+      import("@reticentrahul/recipe-planner/recipe-card"),
+      import("@reticentrahul/recipe-planner/recipe-list"),
+      import("@reticentrahul/recipe-planner/recipe-detail"),
+      import("@reticentrahul/recipe-planner/recipe-form"),
+      import("@reticentrahul/recipe-planner/app-modal"),
+      import("@reticentrahul/recipe-planner/meal-planner"),
+    ]);
+    
     window.showToast = showToastMessage;
     getUserId();
 
@@ -60,7 +76,7 @@
     >
     <div class="nav-links">
       {#each navItems as item}
-        <a href={item.href} class:active={page.url.pathname === item.href}
+        <a href={item.href} class:active={isActiveLink(item.href)}
           >{item.label}</a
         >
       {/each}

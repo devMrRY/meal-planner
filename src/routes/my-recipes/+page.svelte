@@ -10,6 +10,7 @@
   } from "$lib/api";
   import { getUserId, showToast } from "$lib/helpers/utils";
   import { EmptyRecipe } from "$lib/components";
+  import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
 
   let userId = $state("");
   let isLoadingMore = $state(false);
@@ -18,11 +19,51 @@
   let favoriteIds = $state<string[]>([]);
   let recipeListEl = $state<any>(null);
   let isLoading = $state(false);
+  let currentPage = $state(1);
+  let hasMore = $state(true);
+  let recipeToDelete = $state<string | null>(null);
+
+  const pageSize = 10;
+
+  function cancelDelete() {
+    recipeToDelete = null;
+  }
+
+  function getRecipeNameById(id: string | null) {
+    if (!id) return "";
+    const recipe = userRecipes.find((r) => r.id === id);
+    return recipe ? recipe.title : "";
+  }
+
+  async function confirmDelete() {
+    if (!recipeToDelete) return;
+
+    const id = recipeToDelete;
+    try {
+      await deleteRecipe(id, userId);
+      const isFavorite = favoriteIds.includes(id);
+      if (isFavorite) {
+        await toggleFavorite(userId, id, true);
+        favoriteIds = favoriteIds.filter((favoriteId) => favoriteId !== id);
+      }
+      if (selectedRecipe?.id === id) {
+        selectedRecipe = null;
+      }
+      userRecipes = userRecipes.filter((recipe) => recipe.id !== id);
+      recipeToDelete = null;
+      showToast("Recipe deleted successfully.", "success");
+    } catch (e) {
+      console.error("[MyRecipesPage] delete error:", e);
+      showToast("Failed to delete recipe.", "error");
+    }
+  }
 
   async function reloadUserRecipes() {
     if (!userId) return;
 
-    const recipes = await fetchUserRecipes(userId);
+    const recipes = await fetchUserRecipes(userId, 1, pageSize);
+    currentPage = 1;
+    hasMore = recipes.length === pageSize;
     userRecipes = recipes;
 
     if (!selectedRecipe && recipes.length) {
@@ -39,23 +80,7 @@
 
   const handleDelete = async (recipeId: string) => {
     if (!recipeId) return;
-
-    try {
-      await deleteRecipe(recipeId);
-      const isFavorite = favoriteIds.includes(recipeId);
-      if (isFavorite) {
-        await toggleFavorite(userId, recipeId, true); // Remove from favorites if it was a favorite
-        favoriteIds = favoriteIds.filter((id) => id !== recipeId);
-      }
-      if (selectedRecipe?.id === recipeId) {
-        selectedRecipe = null;
-      }
-      userRecipes = userRecipes.filter((recipe) => recipe.id !== recipeId);
-      showToast("Recipe deleted successfully.", "success");
-    } catch (e) {
-      console.error("[MyRecipesPage] delete error:", e);
-      showToast("Failed to delete recipe.", "error");
-    }
+    recipeToDelete = recipeId;
   };
 
   const handleEdit = (recipeId: string) => {
@@ -112,12 +137,21 @@
   };
 
   const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+
     isLoadingMore = true;
-    const newRecipes = await fetchUserRecipes(
-      userId,
-      Math.floor(userRecipes.length / 10) + 1,
-    );
+    const nextPage = currentPage + 1;
+    const newRecipes = await fetchUserRecipes(userId, nextPage, pageSize);
+
+    if (newRecipes.length === 0) {
+      hasMore = false;
+      isLoadingMore = false;
+      return;
+    }
+
     userRecipes = [...userRecipes, ...newRecipes];
+    currentPage = nextPage;
+    hasMore = newRecipes.length === pageSize;
     isLoadingMore = false;
   };
 
@@ -179,13 +213,26 @@
         onedit={handleRecipeEdit}
         ondelete={handleRecipeDelete}
       ></recipe-list>
-      <div class="load-more-container">
-        <button onclick={handleLoadMore} disabled={isLoadingMore}>
-          {isLoadingMore ? "Loading..." : "Load More"}
-        </button>
-      </div>
+      {#if hasMore}
+        <div class="load-more-container">
+          <button onclick={handleLoadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? "Loading..." : "Load More"}
+          </button>
+        </div>
+      {/if}
     {/if}
   </div>
+
+  <ConfirmDeleteModal
+    open={recipeToDelete !== null}
+    onConfirm={confirmDelete}
+    onCancel={cancelDelete}
+  >
+    <p>
+      Are you sure you want to delete
+      <strong>{getRecipeNameById(recipeToDelete)}</strong>?
+    </p>
+  </ConfirmDeleteModal>
 </section>
 
 <style>
