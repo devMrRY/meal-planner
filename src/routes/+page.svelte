@@ -9,7 +9,7 @@
     type Recipe,
   } from "$lib/api";
   import { goto } from "$app/navigation";
-  import { getUserId, showToast } from "$lib/helpers/utils";
+  import { debounce, findRecipeTitle, getUserId, showToast } from "$lib/helpers/utils";
   import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
 
   let recipes = $state<Recipe[]>([]);
@@ -22,7 +22,6 @@
   let userId = $state("");
   let currentPage = $state(1);
   let hasMore = $state(true);
-  let searchTimeout: ReturnType<typeof setTimeout>;
 
   let searchTerm = $state("");
   let selectedCategory = $state("all");
@@ -42,12 +41,6 @@
 
   function cancelDelete() {
     recipeToDelete = null;
-  }
-
-  function getRecipeNameById(id: string | null) {
-    if (!id) return "";
-    const recipe = recipes.find((r) => r.id === id);
-    return recipe ? recipe.title : "";
   }
 
   async function confirmDelete() {
@@ -71,12 +64,7 @@
     }
   }
 
-  function handleSearch() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      loadRecipes();
-    }, 300);
-  }
+  const handleSearch = debounce(loadRecipes, 300);
 
   const categoryList = $derived.by(() => [
     { id: "all", name: "All categories" },
@@ -356,7 +344,7 @@
   >
     <p>
       Are you sure you want to delete
-      <strong>{getRecipeNameById(recipeToDelete)}</strong>?
+      <strong>{findRecipeTitle(recipes, recipeToDelete)}</strong>?
     </p>
   </ConfirmDeleteModal>
 </section>

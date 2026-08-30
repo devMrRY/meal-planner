@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { onMount } from "svelte";
   import { fetchCategoryOptions, fetchRecipeById, type Recipe } from "$lib/api";
+  import { getPlaceholderUrl } from "$lib/helpers/utils";
 
   let recipe = $state<Recipe | null>(null);
   let categoryOptions = $state<
@@ -59,11 +60,11 @@
     <article class="recipe-detail">
       <div class="hero">
         <img
-          src={recipe.image || "/images/recipe-placeholder.png"}
+          src={recipe.image}
           alt={recipe.title}
           onerror={(event) => {
             const img = event.target as HTMLImageElement;
-            img.src = "/images/recipe-placeholder.png";
+            img.src =  getPlaceholderUrl();
           }}
         />
       </div>

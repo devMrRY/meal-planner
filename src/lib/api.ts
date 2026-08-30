@@ -147,34 +147,8 @@ export async function fetchRecipeById(id: string, userId?: string): Promise<Reci
   return data ? toRecipe(data) : null;
 }
 
-export async function fetchUserRecipes(
-  userId: string,
-  page: number = 1,
-  pageSize: number = 10,
-): Promise<Recipe[]> {
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  const { data, error } = await supabase
-    .from("recipes")
-    .select(
-      "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
-    )
-    .eq("is_deleted", false)
-    .eq("created_by", userId)
-    .range(from, to)
-    .order("updated_at", { ascending: false });
-
-  if (error) {
-    console.error("[API] Fetch user recipes error:", error);
-    return [];
-  }
-
-  return ((data as DbRecipe[] | null) || []).map(toRecipe);
-}
-
 export async function createRecipe(
-  recipe: Omit<Recipe, "id" | "createdBy">,
+  recipe: Omit<Recipe, "id">,
 ): Promise<Recipe> {
   const payload: Partial<DbRecipe> = {
     title: recipe.title,
@@ -294,13 +268,15 @@ export async function toggleFavorite(
 }
 
 // Meal plans table: user_id, meal_type, recipe_id
-export async function fetchMealPlan(userId: string): Promise<any[]> {
+export async function fetchMealPlan(userId: string, startDate: string, endDate: string): Promise<any[]> {
   const { data, error } = await supabase
     .from("meal_plans")
     .select(
       "*, recipe:recipe_id(title, image, description, ingredients, steps, category_id, category:category_id(id, name), subcategory_id, subcategory:subcategory_id(id, name))",
     )
     .eq("user_id", userId)
+    .gte("date", startDate)
+    .lte("date", endDate)
     .order("updated_at", { ascending: false });
 
   if (error) {

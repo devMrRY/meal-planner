@@ -24,6 +24,10 @@
     }
   };
 
+  const handleCancel = () => {
+    goto('/my-recipes');
+  }
+
   onMount(async () => {
     categoryOptions = await fetchCategoryOptions();
   });
@@ -42,7 +46,7 @@
   </div>
 
   <div class="form-panel">
-    <recipe-form bind:this={recipeFormEl} onsave={handleSave} categories={categoryOptions}></recipe-form>
+    <recipe-form bind:this={recipeFormEl} onsave={handleSave} oncancel={handleCancel} categories={categoryOptions}></recipe-form>
   </div>
 </section>
 
@@ -64,15 +68,21 @@
   h1 {
     margin: 0;
     font-size: 2rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   }
 
   .back-link {
-    color: #111827;
+    background: #fff;
     text-decoration: none;
-    background: #e5e7eb;
+    color: #78716c;
+    border: 1px solid #fed7aa;
     border-radius: 8px;
     padding: 0.7rem 0.9rem;
     font-weight: 600;
+  }
+
+  .back-link:hover {
+    box-shadow: 0 2px 4px rgb(15 23 42 / 12%);
   }
 
   .form-panel {

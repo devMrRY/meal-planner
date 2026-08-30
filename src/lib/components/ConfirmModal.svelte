@@ -17,24 +17,28 @@
   }>();
 </script>
 
-<app-modal
-  {open}
-  modal-title={title}
-  close-on-backdrop={true}
-  close-on-escape={true}
-  onmodalClose={onCancel}
->
-  <div class="confirmation">
-    {#if children}
-      {@render children()}
-    {/if}
-  </div>
-  <div slot="footer" class="actions">
-    <button type="button" onclick={onCancel}> Cancel </button>
+{#if open}
+  <app-modal
+    {open}
+    modal-title={title}
+    close-on-backdrop={true}
+    close-on-escape={true}
+    onmodalClose={onCancel}
+  >
+    <div class="confirmation">
+      {#if children}
+        {@render children()}
+      {/if}
+    </div>
+    <div slot="footer" class="actions">
+      <button type="button" onclick={onCancel}> Cancel </button>
 
-    <button type="button" class="delete" onclick={onConfirm}> {confirmLabel} </button>
-  </div>
-</app-modal>
+      <button type="button" class="delete" onclick={onConfirm}>
+        {confirmLabel}
+      </button>
+    </div>
+  </app-modal>
+{/if}
 
 <style>
   .confirmation {
