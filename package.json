@@ -7,7 +7,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "prepare": "svelte-kit sync"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^4.0.0",
@@ -20,7 +21,7 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
-    "@reticentrahul/recipe-planner": "^1.0.3",
+    "@reticentrahul/recipe-planner": "^1.0.4",
     "@supabase/supabase-js": "^2.33.0"
   }
 }
