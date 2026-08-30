@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { onMount } from "svelte";
   import { getUserId } from "$lib/helpers/utils";
+  import { defineCustomElements } from "$lib/stencil-loader";
 
   type ToastType = "success" | "error" | "info";
 
@@ -31,11 +32,14 @@
   }
 
   onMount(() => {
-    import("@reticentrahul/recipe-planner/loader").then((module) => {
-      module.defineCustomElements(window);
-    });
-    window.showToast = showToastMessage;
-    getUserId();
+    defineCustomElements(window)
+      .then(() => {
+        window.showToast = showToastMessage;
+        getUserId();
+      })
+      .catch(error => {
+        console.error("Failed to initialize custom elements:", error);
+      });
 
     return () => {
       window.showToast = undefined;
