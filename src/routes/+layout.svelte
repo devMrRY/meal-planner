@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { browser } from "$app/env";
   import { page } from "$app/state";
   import { onMount } from "svelte";
   import { getUserId } from "$lib/helpers/utils";
-  import { defineCustomElements } from "@reticentrahul/recipe-planner/loader";
+
   type ToastType = "success" | "error" | "info";
 
   type ToastItem = {
@@ -13,9 +12,6 @@
   };
 
   let { children } = $props();
-  if (browser) {
-    defineCustomElements();
-  }
   let toasts = $state<ToastItem[]>([]);
 
   const navItems = [
@@ -35,6 +31,13 @@
   }
 
   onMount(() => {
+    import('@reticentrahul/recipe-planner/meal-planner'),
+    import('@reticentrahul/recipe-planner/recipe-list'),
+    import('@reticentrahul/recipe-planner/recipe-card'),
+    import('@reticentrahul/recipe-planner/recipe-detail'),
+    import('@reticentrahul/recipe-planner/recipe-form'),
+    import('@reticentrahul/recipe-planner/app-modal')
+
     window.showToast = showToastMessage;
     getUserId();
 
