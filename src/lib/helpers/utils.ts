@@ -1,4 +1,5 @@
-import type { Recipe } from "$lib/api";
+import type { Recipe } from "$lib/types";
+import type { DbRecipe } from "$lib/supabase";
 
 export const getUserId = () => {
   let userId = localStorage.getItem("userId");
@@ -71,3 +72,23 @@ export const getPlaceholderUrl = () =>
       </text>
     </svg>
   `)}`;
+
+export function toRecipe(db: DbRecipe): Recipe {
+  return {
+    id: db.id,
+    title: db.title,
+    image: db.image || "",
+    description: db.description || "",
+    ingredients: db.ingredients || [],
+    steps: db.steps || [],
+    category: db.category ?? null,
+    subcategory: db.subcategory ?? null,
+    category_id: db.category_id,
+    subcategory_id: db.subcategory_id,
+    isDeleted: db.is_deleted ?? false,
+    createdBy: db.created_by ?? "system",
+    createdAt: db.created_at ? new Date(db.created_at) : new Date(),
+    updatedBy: db.updated_by ?? "system",
+    updatedAt: db.updated_at ? new Date(db.updated_at) : null,
+  };
+}

@@ -38,7 +38,6 @@
         "success",
       );
     } catch (e) {
-      console.error("[MyRecipesPage] favorite error:", e);
       showToast(
         isFavorite
           ? "Failed to remove recipe from favorites."
@@ -51,42 +50,54 @@
   async function loadFavorites() {
     if (!userId) return;
     isLoading = true;
-    const favoriteRecipes = await fetchFavorites(userId, 1, pageSize);
-    currentPage = 1;
-    hasMore = favoriteRecipes.length === pageSize;
-    favoriteIds = favoriteRecipes.map((r) => r.id);
-    userRecipes = favoriteRecipes;
+    try {
+      const favoriteRecipes = await fetchFavorites(userId, 1, pageSize);
+      currentPage = 1;
+      hasMore = favoriteRecipes.length === pageSize;
+      favoriteIds = favoriteRecipes.map((r) => r.id);
+      userRecipes = favoriteRecipes;
 
-    if (!selectedRecipe && favoriteRecipes.length) {
-      selectedRecipe = favoriteRecipes[0];
-    }
+      if (!selectedRecipe && favoriteRecipes.length) {
+        selectedRecipe = favoriteRecipes[0];
+      }
 
-    if (
-      selectedRecipe &&
-      !favoriteRecipes.some((recipe) => recipe.id === selectedRecipe?.id)
-    ) {
-      selectedRecipe = favoriteRecipes[0] ?? null;
+      if (
+        selectedRecipe &&
+        !favoriteRecipes.some((recipe) => recipe.id === selectedRecipe?.id)
+      ) {
+        selectedRecipe = favoriteRecipes[0] ?? null;
+      }
+    } catch (e) {
+      showToast("Failed to load favorites.", "error");
+      favoriteIds = [];
+      userRecipes = [];
+      selectedRecipe = null;
+    } finally {
+      isLoading = false;
     }
-    isLoading = false;
   }
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
 
     isLoadingMore = true;
-    const nextPage = currentPage + 1;
-    const newRecipes = await fetchFavorites(userId, nextPage, pageSize);
+    try {
+      const nextPage = currentPage + 1;
+      const newRecipes = await fetchFavorites(userId, nextPage, pageSize);
 
-    if (newRecipes.length === 0) {
-      hasMore = false;
+      if (newRecipes.length === 0) {
+        hasMore = false;
+        return;
+      }
+
+      userRecipes = [...userRecipes, ...newRecipes];
+      currentPage = nextPage;
+      hasMore = newRecipes.length === pageSize;
+    } catch (e) {
+      showToast("Failed to load more favorites.", "error");
+    } finally {
       isLoadingMore = false;
-      return;
     }
-
-    userRecipes = [...userRecipes, ...newRecipes];
-    currentPage = nextPage;
-    hasMore = newRecipes.length === pageSize;
-    isLoadingMore = false;
   };
 
   onMount(async () => {

@@ -11,6 +11,7 @@
   import { findRecipeTitle, getUserId, showToast } from "$lib/helpers/utils";
   import { EmptyRecipe } from "$lib/components";
   import ConfirmDeleteModal from "$lib/components/ConfirmModal.svelte";
+  import CategoryModal from "$lib/components/CategoryModal.svelte";
 
   let userId = $state("");
   let isLoadingMore = $state(false);
@@ -22,6 +23,7 @@
   let currentPage = $state(1);
   let hasMore = $state(true);
   let recipeToDelete = $state<string | null>(null);
+  let openCategoryModal = $state(false);
 
   const pageSize = 10;
 
@@ -47,7 +49,6 @@
       recipeToDelete = null;
       showToast("Recipe deleted successfully.", "success");
     } catch (e) {
-      console.error("[MyRecipesPage] delete error:", e);
       showToast("Failed to delete recipe.", "error");
     }
   }
@@ -55,27 +56,34 @@
   async function reloadUserRecipes() {
     if (!userId) return;
 
-    const { recipes } = await fetchRecipes(
-      null,
-      null,
-      null,
-      userId,
-      1,
-      pageSize,
-    );
-    currentPage = 1;
-    hasMore = recipes.length === pageSize;
-    userRecipes = recipes;
+    try {
+      const { recipes } = await fetchRecipes(
+        null,
+        null,
+        null,
+        userId,
+        1,
+        pageSize,
+      );
+      currentPage = 1;
+      hasMore = recipes.length === pageSize;
+      userRecipes = recipes;
 
-    if (!selectedRecipe && recipes.length) {
-      selectedRecipe = recipes[0];
-    }
+      if (!selectedRecipe && recipes.length) {
+        selectedRecipe = recipes[0];
+      }
 
-    if (
-      selectedRecipe &&
-      !recipes.some((recipe) => recipe.id === selectedRecipe?.id)
-    ) {
-      selectedRecipe = recipes[0] ?? null;
+      if (
+        selectedRecipe &&
+        !recipes.some((recipe) => recipe.id === selectedRecipe?.id)
+      ) {
+        selectedRecipe = recipes[0] ?? null;
+      }
+    } catch (e) {
+      showToast("Failed to load your recipes.", "error");
+      userRecipes = [];
+      selectedRecipe = null;
+      hasMore = false;
     }
   }
 
@@ -115,13 +123,7 @@
         "success",
       );
     } catch (e) {
-      console.error("[MyRecipesPage] favorite error:", e);
-      showToast(
-        isFavorite
-          ? "Failed to remove recipe from favorites."
-          : "Failed to add recipe to favorites.",
-        "error",
-      );
+      showToast("Failed to update favorites.", "error");
     }
   };
 
@@ -137,39 +139,52 @@
     goto("/my-recipes/create");
   };
 
+  const handleNewCategory = () => {
+    openCategoryModal = true;
+  };
+
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
 
     isLoadingMore = true;
-    const nextPage = currentPage + 1;
-    const { recipes: newRecipes } = await fetchRecipes(
-      null,
-      null,
-      null,
-      userId,
-      nextPage,
-      pageSize,
-    );
+    try {
+      const nextPage = currentPage + 1;
+      const { recipes: newRecipes } = await fetchRecipes(
+        null,
+        null,
+        null,
+        userId,
+        nextPage,
+        pageSize,
+      );
 
-    if (newRecipes.length === 0) {
-      hasMore = false;
+      if (newRecipes.length === 0) {
+        hasMore = false;
+        return;
+      }
+
+      userRecipes = [...userRecipes, ...newRecipes];
+      currentPage = nextPage;
+      hasMore = newRecipes.length === pageSize;
+    } catch (e) {
+      showToast("Failed to load more recipes.", "error");
+    } finally {
       isLoadingMore = false;
-      return;
     }
-
-    userRecipes = [...userRecipes, ...newRecipes];
-    currentPage = nextPage;
-    hasMore = newRecipes.length === pageSize;
-    isLoadingMore = false;
   };
 
   onMount(async () => {
     isLoading = true;
-    userId = getUserId();
-    const favouriteRecipes = await fetchFavorites(userId);
-    favoriteIds = favouriteRecipes.map((r) => r.id);
-    await reloadUserRecipes();
-    isLoading = false;
+    try {
+      userId = getUserId();
+      const favouriteRecipes = await fetchFavorites(userId);
+      favoriteIds = favouriteRecipes.map((r) => r.id);
+      await reloadUserRecipes();
+    } catch (e) {
+      showToast("Failed to load your recipes.", "error");
+    } finally {
+      isLoading = false;
+    }
   });
 
   function setRecipeListProps(el: any) {
@@ -195,9 +210,14 @@
 <section class="route-page">
   <div class="page-header">
     <h1>My Recipes</h1>
-    <button type="button" class="new-button" onclick={handleNew}>
-      + New recipe
-    </button>
+    <div class="button-group">
+      <button type="button" class="new-button" onclick={handleNewCategory}>
+        + New Category
+      </button>
+      <button type="button" class="new-button" onclick={handleNew}>
+        + New recipe
+      </button>
+    </div>
   </div>
 
   <div class="layout">
@@ -230,6 +250,14 @@
       {/if}
     {/if}
   </div>
+
+  <CategoryModal
+    open={openCategoryModal}
+    onCancel={() => (openCategoryModal = false)}
+    onConfirm={() => {
+      openCategoryModal = false;
+    }}
+  ></CategoryModal>
 
   <ConfirmDeleteModal
     open={recipeToDelete !== null}

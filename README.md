@@ -1,97 +1,198 @@
-# Recipe Planner Consumer
+# Recipe Planner
 
-A SvelteKit app that consumes Stencil web components for recipe management backed by Supabase.
+A SvelteKit application for discovering, searching, filtering, saving, and organizing recipes using Supabase as the data layer and reusable StencilJS web components for the UI.
+
+## Live Demo
+
+- Netlify app: https://meal-planner-nagp.netlify.app/
+- SvelteKit repository: https://github.com/devMrRY/meal-planner
+- Default branch: `main`
+- Stencil component library: https://github.com/devMrRY/recipe_planner
+- Stencil package: https://www.npmjs.com/package/@reticentrahul/recipe-planner
+- Latest package version: `1.0.7`
+
+## Project Overview
+
+This project demonstrates a full-stack frontend architecture combining:
+
+- SvelteKit for routing, page composition, and state-driven UI
+- Supabase for persistent recipe, favorite, and meal-plan data
+- StencilJS for reusable web components packaged as an npm library
+- Netlify for automated deployment
+
+The app supports both recipe browsing and personal recipe management, with all data stored in the project database instead of a public recipe API.
+
+## Features
+
+- Search recipes by title
+- Filter by category and subcategory
+- Browse recipes in a structured grid layout
+- View full recipe details with ingredients and steps
+- Create, edit, and delete user-created recipes
+- Validate recipe form input before saving
+- Add or remove recipes from favorites
+- View all saved favorite recipes
+- Create and manage a weekly meal plan
+- Use Stencil web components throughout the experience
+
+## Tech Stack
+
+- Svelte 5
+- SvelteKit
+- Supabase
+- StencilJS
+- TypeScript
+- Netlify
+
+## Assumptions
+
+- Recipe data is stored in Supabase rather than fetched from a public recipe API.
+- Favorites and meal plans are stored per user in the same Supabase project.
+- Demo user identity is represented by a `userId` stored in browser localStorage.
+- This is a portfolio/demo project and not a production-grade authentication system.
 
 ## Setup
 
-### 1. Create Supabase Project
+### 1. Create a Supabase project
 
-1. Go to [supabase.com](https://supabase.com) and create a new project.
-2. Copy your **Project URL** and **Anon Public Key** from project settings.
+1. Go to https://supabase.com
+2. Create a new project
+3. Copy the project URL and anon key from the project settings
 
-### 2. Set Up Database Tables
+### 2. Run the SQL schema
 
-Option A: Use the SQL migration file
-- In Supabase dashboard, navigate to **SQL Editor**
-- Create a new query and paste the contents of `supabase.sql`
-- Run the query to create tables and RLS policies
+Open the Supabase SQL editor and execute the contents of `supabase.sql`.
 
-Option B: Manually create tables (see schema below)
+### 3. Configure environment variables
 
-### 3. Configure Environment Variables
-
-Copy `.env.example` to `.env` and fill in your Supabase credentials:
+Create `.env` from `.env.example`:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
-```
+Then set:
+
+```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 4. Install Dependencies & Run
+### 4. Install dependencies
 
 ```bash
 npm install
+```
+
+### 5. Start the app
+
+```bash
 npm run dev
 ```
 
-The app will start at `http://localhost:5173`
+The app runs locally at:
 
-## Features
+```text
+http://localhost:5173
+```
 
-- ✅ Fetch recipes from Supabase
-- ✅ Create, update, and delete recipes
-- ✅ Add recipes to favorites (persisted per user)
-- ✅ Create and save weekly meal plans
-- ✅ Web components UI built with Stencil
+## Stencil Package
+
+The app consumes the published Stencil library package:
+
+```bash
+npm install @reticentrahul/recipe-planner
+```
+
+The library exposes reusable custom elements such as:
+
+- `recipe-card`
+- `recipe-list`
+- `recipe-detail`
+- `recipe-form`
+- `meal-planner`
+- `app-modal`
 
 ## Database Schema
 
-### recipes
+### `recipes`
+
 - `id` (uuid, primary key)
 - `title` (text, required)
-- `summary` (text)
 - `image` (text)
 - `description` (text)
-- `ingredients` (text array)
-- `steps` (text array)
-- `created_by` (text)
-- `created_at` (timestamptz)
+- `ingredients` (text[])
+- `steps` (text[])
+- `category_id` (uuid, nullable)
+- `subcategory_id` (uuid, nullable)
+- `is_deleted` (boolean, default `false`)
+- `created_by` (text, default `'system'`)
+- `created_at` (timestamptz, default `now()`)
+- `updated_by` (text, default `'system'`)
+- `updated_at` (timestamptz, default `now()`)
 
-### favorites
+### `favorites`
+
 - `id` (uuid, primary key)
 - `user_id` (text)
-- `recipe_id` (uuid, foreign key to recipes)
+- `recipe_id` (uuid)
+- `updated_by` (text, default `'system'`)
+- `updated_at` (timestamptz, default `now()`)
+- unique constraint on `(user_id, recipe_id)`
 
-### meal_plans
-- `user_id` (text, primary key)
-- `plan` (jsonb)
+### `meal_plans`
+
+- `id` (uuid, primary key)
+- `user_id` (text)
+- `meal_type` (text)
+- `recipe_id` (uuid)
+- `updated_by` (text, default `'system'`)
+- `updated_at` (timestamptz, default `now()`)
+
+### `categories`
+
+- `id` (uuid, primary key)
+- `name` (text)
+- `parent_id` (uuid, nullable)
+- `created_at` (timestamptz, default `now()`)
+- `created_by` (text, default `'system'`)
+
+## Deployment
+
+The app is deployed on Netlify.
+
+Deployment flow:
+
+- code is merged into the `main` branch
+- Netlify builds and deploys automatically
+- direct merges to `main` are restricted
+- pull requests are required before deployment begins
+
+## Important Notes
+
+- The app uses `localStorage` with a `userId` key for demo user tracking.
+- Seed category data is included for breakfast, lunch, dinner, dessert, and related subcategories.
+- Row Level Security is intentionally permissive for development use.
+- Production deployments should tighten database access and authentication rules.
 
 ## Troubleshooting
 
-### "500 error on page load"
+### App fails to load
 
-Check the browser console for error messages. Common issues:
+Common causes:
 
-1. **Missing Supabase tables** - Run the SQL migration in `supabase.sql`
-2. **Wrong environment variables** - Ensure `.env` has correct `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-3. **RLS policies blocking** - The provided SQL allows anon key for development; adjust policies for production security
+1. Missing Supabase environment variables
+2. Tables were not created in Supabase
+3. RLS policies are blocking access
+4. Database schema is not up to date
 
-### "Tables don't exist"
+### Missing tables
 
-Run this SQL in Supabase SQL Editor:
+Run the SQL in `supabase.sql` in the Supabase SQL editor.
 
-```sql
--- Run contents of supabase.sql here
-```
+## Repository Links
 
-## Notes
-
-- This demo uses a simple `localStorage` key (`rp_user`) for user identification. Replace with Supabase Auth for production.
-- RLS policies in the provided SQL are permissive for development. Implement stricter policies for production.
-- The anon key should be restricted in production to only allow authenticated users.
+- App repo: https://github.com/devMrRY/meal-planner
+- Stencil repo: https://github.com/devMrRY/recipe_planner
+- NPM package: https://www.npmjs.com/package/@reticentrahul/recipe-planner
 

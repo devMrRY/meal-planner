@@ -1,13 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { onMount } from "svelte";
-  import { fetchCategoryOptions, fetchRecipeById, type Recipe } from "$lib/api";
-  import { getPlaceholderUrl } from "$lib/helpers/utils";
+  import { fetchRecipeById, type Recipe } from "$lib/api";
+  import { getPlaceholderUrl, showToast } from "$lib/helpers/utils";
 
   let recipe = $state<Recipe | null>(null);
-  let categoryOptions = $state<
-    Array<{ id: string; name: string; parent_id: string | null }>
-  >([]);
   let loading = $state(true);
   let error = $state("");
 
@@ -22,7 +19,6 @@
     error = "";
 
     try {
-      categoryOptions = await fetchCategoryOptions();
       const recipeId = page.params.recipe_id;
       recipe = await fetchRecipeById(recipeId);
 
@@ -30,10 +26,12 @@
         error = "Recipe not found.";
       }
     } catch (e) {
-      console.error("[RecipeViewPage] load error:", e);
       error = "Unable to load recipe.";
     } finally {
       loading = false;
+      if (error) {
+        showToast(error, "error");
+      }
     }
   }
 
@@ -114,7 +112,7 @@
   .page {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 32px 20px 80px;
+    padding: 20px 20px 40px;
   }
 
   .status {
@@ -200,14 +198,16 @@
   }
 
   .back-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.7rem 1rem;
-    background: #111827;
-    color: #fff;
-    border-radius: 10px;
+    background: #fff;
     text-decoration: none;
+    color: #78716c;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
     font-weight: 600;
+  }
+
+  .back-link:hover {
+    box-shadow: 0 2px 4px rgb(15 23 42 / 12%);
   }
 </style>

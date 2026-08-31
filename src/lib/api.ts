@@ -1,62 +1,18 @@
-export type CategoryRef = {
-  id: string;
-  name: string;
-} | null;
-
-export interface Recipe {
-  id: string;
-  title: string;
-  summary?: string;
-  image: string;
-  description: string;
-  ingredients: string[];
-  steps: string[];
-  category: CategoryRef;
-  subcategory: CategoryRef;
-  category_id?: string | null;
-  subcategory_id?: string | null;
-  isDeleted: boolean;
-  createdBy: string;
-  createdAt: Date;
-  updatedBy?: string | null;
-  updatedAt?: Date | null;
-}
-
-export type CategoryOption = {
-  id: string;
-  name: string;
-  parent_id: string | null;
-};
-
+import type { CategoryOption, Recipe } from "./types";
 import { supabase, type DbRecipe } from "./supabase";
+import { toRecipe } from "./helpers/utils";
 
-function toRecipe(db: DbRecipe): Recipe {
-  return {
-    id: db.id,
-    title: db.title,
-    image: db.image || "",
-    description: db.description || "",
-    ingredients: db.ingredients || [],
-    steps: db.steps || [],
-    category: db.category ?? null,
-    subcategory: db.subcategory ?? null,
-    category_id: db.category_id,
-    subcategory_id: db.subcategory_id,
-    isDeleted: db.is_deleted ?? false,
-    createdBy: db.created_by ?? "system",
-    createdAt: db.created_at ? new Date(db.created_at) : new Date(),
-    updatedBy: db.updated_by ?? "system",
-    updatedAt: db.updated_at ? new Date(db.updated_at) : null,
-  };
-}
+export type { CategoryRef, CategoryOption, Recipe } from "./types";
 
-export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
+export async function fetchCategoryOptions(userId: string): Promise<CategoryOption[]> {
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name, parent_id");
+    .select("id, name, parent_id")
+    .or(`created_by.eq.system,created_by.eq.${userId}`);
+
   if (error) {
-    console.warn("[API] Fetch category options error (non-fatal):", error);
-    return [];
+    console.error("[API] Fetch category options error:", error);
+    throw error;
   }
 
   const normalized = (data || [])
@@ -72,8 +28,31 @@ export async function fetchCategoryOptions(): Promise<CategoryOption[]> {
       };
     })
     .filter(Boolean) as CategoryOption[];
+
   return normalized;
 }
+
+export async function createCategory(category: Omit<CategoryOption, "id">, userId: string): Promise<CategoryOption> {
+  const payload: Partial<CategoryOption> & { created_by: string } = {
+    name: category.name,
+    parent_id: category.parent_id,
+    created_by: userId, // Use the provided user ID
+  };
+
+  const { data, error } = await supabase
+    .from("categories")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[API] Create category error:", error);
+    throw error;
+  }
+
+  return data as CategoryOption;
+}
+
 
 export async function fetchRecipes(
   searchTerm?: string | null,
@@ -89,7 +68,7 @@ export async function fetchRecipes(
     .from("recipes")
     .select(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
-      { count: "exact" }
+      { count: "exact" },
     )
     .eq("is_deleted", false)
     .range(from, to)
@@ -117,18 +96,21 @@ export async function fetchRecipes(
 
   if (error) {
     console.error("[API] Fetch recipes error:", error);
-    return { recipes: [], count: 0 };
+    throw error;
   }
 
   const recipes = ((data as DbRecipe[] | null) || []).map(toRecipe);
-  return { recipes, count };
+  return { recipes, count: count ?? recipes.length };
 }
 
-export async function fetchRecipeById(id: string, userId?: string): Promise<Recipe | null> {
+export async function fetchRecipeById(
+  id: string,
+  userId?: string,
+): Promise<Recipe | null> {
   let query = supabase
     .from("recipes")
     .select(
-      "*, category:category_id(id, name), subcategory:subcategory_id(id, name)"
+      "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
     )
     .eq("id", id)
     .eq("is_deleted", false)
@@ -141,7 +123,7 @@ export async function fetchRecipeById(id: string, userId?: string): Promise<Reci
   const { data, error } = await query;
   if (error) {
     console.error("[API] Fetch recipe by ID error:", error);
-    return null;
+    throw error;
   }
 
   return data ? toRecipe(data) : null;
@@ -168,7 +150,12 @@ export async function createRecipe(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
     )
     .single();
-  if (error) throw error;
+
+  if (error) {
+    console.error("[API] Create recipe error:", error);
+    throw error;
+  }
+
   return toRecipe(data as DbRecipe);
 }
 
@@ -199,7 +186,12 @@ export async function updateRecipe(
       "*, category:category_id(id, name), subcategory:subcategory_id(id, name)",
     )
     .single();
-  if (error) throw error;
+
+  if (error) {
+    console.error("[API] Update recipe error:", error);
+    throw error;
+  }
+
   return toRecipe(data as DbRecipe);
 }
 
@@ -211,7 +203,10 @@ export async function deleteRecipe(id: string, userId: string): Promise<void> {
     .eq("is_deleted", false)
     .eq("created_by", userId);
 
-  if (error) throw error;
+  if (error) {
+    console.error("[API] Delete recipe error:", error);
+    throw error;
+  }
 }
 
 // Favorites table: favorites(user_id, recipe_id)
@@ -231,10 +226,12 @@ export async function fetchFavorites(
     .eq("user_id", userId)
     .range(from, to)
     .order("created_at", { ascending: false });
+
   if (error) {
-    console.warn("[API] Fetch favorites error (non-fatal):", error);
-    return [];
+    console.error("[API] Fetch favorites error:", error);
+    throw error;
   }
+
   return (data || []).map((row: any) => ({
     id: row.recipe_id,
     title: row.recipe?.title || "",
@@ -255,20 +252,36 @@ export async function toggleFavorite(
   isFavorite: boolean,
 ): Promise<void> {
   if (isFavorite) {
-    await supabase
+    const { error } = await supabase
       .from("favorites")
       .delete()
       .eq("user_id", userId)
       .eq("recipe_id", recipeId);
-  } else {
-    await supabase
-      .from("favorites")
-      .insert({ user_id: userId, recipe_id: recipeId });
+
+    if (error) {
+      console.error("[API] Remove favorite error:", error);
+      throw error;
+    }
+
+    return;
+  }
+
+  const { error } = await supabase
+    .from("favorites")
+    .insert({ user_id: userId, recipe_id: recipeId });
+
+  if (error) {
+    console.error("[API] Add favorite error:", error);
+    throw error;
   }
 }
 
 // Meal plans table: user_id, meal_type, recipe_id
-export async function fetchMealPlan(userId: string, startDate: string, endDate: string): Promise<any[]> {
+export async function fetchMealPlan(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<any[]> {
   const { data, error } = await supabase
     .from("meal_plans")
     .select(
@@ -280,8 +293,8 @@ export async function fetchMealPlan(userId: string, startDate: string, endDate: 
     .order("updated_at", { ascending: false });
 
   if (error) {
-    console.warn("[API] Fetch meal plan error (non-fatal):", error);
-    return [];
+    console.error("[API] Fetch meal plan error:", error);
+    throw error;
   }
 
   return (data || []) as any[];
@@ -307,7 +320,8 @@ export async function saveMealPlan(entry: {
   const { error } = await supabase.from("meal_plans").upsert(payload).select();
 
   if (error) {
-    console.warn("[API] Save meal plan error:", error);
+    console.error("[API] Save meal plan error:", error);
+    throw error;
   }
 }
 
@@ -321,6 +335,7 @@ export async function updateMealPlan(entry: {
     recipe_id: entry.recipe_id,
     updated_at: entry.updated_at,
   };
+
   const { error } = await supabase
     .from("meal_plans")
     .update(payload)
@@ -328,7 +343,8 @@ export async function updateMealPlan(entry: {
     .eq("user_id", entry.userId);
 
   if (error) {
-    console.warn("[API] Update meal plan error:", error);
+    console.error("[API] Update meal plan error:", error);
+    throw error;
   }
 }
 
@@ -341,8 +357,10 @@ export async function clearMealPlansForDate(
     .delete()
     .eq("date", date)
     .eq("user_id", userId);
+
   if (error) {
-    console.warn("[API] Clear meal plans for date error:", error);
+    console.error("[API] Clear meal plans for date error:", error);
+    throw error;
   }
 }
 
@@ -355,8 +373,10 @@ export async function deleteMealPlan(
     .delete()
     .eq("id", id)
     .eq("user_id", userId);
+
   if (error) {
-    console.warn("[API] Delete meal plan error:", error);
+    console.error("[API] Delete meal plan error:", error);
+    throw error;
   }
 }
 
@@ -373,6 +393,7 @@ export async function clearWeek(
     .lte("date", endDate);
 
   if (error) {
-    console.error("[API] Clear meal plans for date error:", error);
+    console.error("[API] Clear week error:", error);
+    throw error;
   }
 }

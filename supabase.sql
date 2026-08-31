@@ -1,49 +1,52 @@
--- Create recipes table
-CREATE TABLE IF NOT EXISTS recipes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title TEXT NOT NULL,
-  image TEXT,
-  description TEXT,
-  ingredients TEXT[] DEFAULT '{}',
-  steps TEXT[] DEFAULT '{}',
-  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-  subcategory_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  created_by TEXT DEFAULT 'system',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_by TEXT DEFAULT 'system',
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- Create favorites table (many-to-many)
-CREATE TABLE IF NOT EXISTS favorites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL,
-  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
-  updated_by TEXT DEFAULT 'system',
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE (user_id, recipe_id)
+CREATE TABLE public.recipes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  image text,
+  description text,
+  ingredients ARRAY DEFAULT '{}'::text[],
+  steps ARRAY DEFAULT '{}'::text[],
+  created_by text,
+  created_at timestamp with time zone DEFAULT now(),
+  is_deleted boolean NOT NULL DEFAULT false,
+  category_id uuid,
+  subcategory_id uuid,
+  updated_by text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipes_pkey PRIMARY KEY (id),
+  CONSTRAINT recipes_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT recipes_subcategory_id_fkey FOREIGN KEY (subcategory_id) REFERENCES public.categories(id)
 );
-
--- Create meal_plans table
-CREATE TABLE IF NOT EXISTS meal_plans (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL,
-  meal_type TEXT NOT NULL,
-  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
-  updated_by TEXT DEFAULT 'system',
-  updated_at TIMESTAMPTZ DEFAULT now(),
+CREATE TABLE public.favorites (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  recipe_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT favorites_pkey PRIMARY KEY (id),
+  CONSTRAINT favorites_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
-
--- Create categories table
-CREATE TABLE IF NOT EXISTS categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  updated_by TEXT DEFAULT 'system'
+CREATE TABLE public.categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  parent_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  created_by text DEFAULT 'system'::text,
+  CONSTRAINT categories_pkey PRIMARY KEY (id),
+  CONSTRAINT categories_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.categories(id)
 );
-
+CREATE TABLE public.meal_plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  meal_type text NOT NULL,
+  recipe_id uuid,
+  updated_by text DEFAULT 'system'::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  date date NOT NULL,
+  CONSTRAINT meal_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT meal_plans_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
+);
 -- Seed demo categories and subcategories using parent_id relationships
 INSERT INTO categories (id, name, parent_id)
 VALUES

@@ -59,7 +59,6 @@
       recipeToDelete = null;
       showToast("Recipe deleted successfully!", "success");
     } catch (e) {
-      console.error("[Page] Delete error:", e);
       showToast("Failed to delete recipe.", "error");
     }
   }
@@ -185,7 +184,6 @@
       error = "";
       await Promise.all([loadRecipes(), loadFavorites(), loadCategories()]);
     } catch (e) {
-      console.error("[Page] loadAll() error:", e);
       showToast("Failed to load application data.", "error");
       error =
         e instanceof Error ? e.message : "Failed to load application data";
@@ -195,49 +193,72 @@
   }
 
   async function loadRecipes() {
-    currentPage = 1;
-    const { recipes: fetchedRecipes, count } = await fetchRecipes(
-      searchTerm,
-      selectedCategory,
-      selectedSubcategory,
-      userId,
-    );
-    recipes = fetchedRecipes;
-    if (recipes.length) {
-      selectedRecipe = recipes[0];
-      hasMore = recipes.length < count;
+    try {
+      currentPage = 1;
+      const { recipes: fetchedRecipes, count } = await fetchRecipes(
+        searchTerm,
+        selectedCategory,
+        selectedSubcategory,
+        userId,
+      );
+      recipes = fetchedRecipes;
+      if (recipes.length) {
+        selectedRecipe = recipes[0];
+        hasMore = recipes.length < count;
+      } else {
+        hasMore = false;
+      }
       totalRecipes = count;
-    } else {
+    } catch (e) {
+      showToast("Failed to load recipes.", "error");
+      recipes = [];
+      selectedRecipe = null;
       hasMore = false;
+      totalRecipes = 0;
     }
   }
 
   async function loadFavorites() {
-    const favs = await fetchFavorites(userId);
-    favorites = new Set(favs.map((r) => r.id));
+    try {
+      const favs = await fetchFavorites(userId);
+      favorites = new Set(favs.map((r) => r.id));
+    } catch (e) {
+      showToast("Failed to load favorites.", "error");
+      favorites = new Set();
+    }
   }
 
   async function loadCategories() {
-    const fetchedCategories = await fetchCategoryOptions();
-    categoryOptions = fetchedCategories;
+    try {
+      const fetchedCategories = await fetchCategoryOptions(userId);
+      categoryOptions = fetchedCategories;
+    } catch (e) {
+      showToast("Failed to load categories.", "error");
+      categoryOptions = [];
+    }
   }
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return; // No more recipes to load
     isLoadingMore = true;
-    const nextPage = currentPage + 1;
-    const newRecipes = await fetchRecipes(
-      searchTerm,
-      selectedCategory,
-      selectedSubcategory,
-      userId,
-      nextPage,
-    );
-    recipes = [...recipes, ...newRecipes.recipes];
-    isLoadingMore = false;
-    currentPage = nextPage;
-    if (newRecipes.recipes.length < pageSize) {
-      hasMore = false;
+    try {
+      const nextPage = currentPage + 1;
+      const newRecipes = await fetchRecipes(
+        searchTerm,
+        selectedCategory,
+        selectedSubcategory,
+        userId,
+        nextPage,
+      );
+      recipes = [...recipes, ...newRecipes.recipes];
+      currentPage = nextPage;
+      if (newRecipes.recipes.length < pageSize) {
+        hasMore = false;
+      }
+    } catch (e) {
+      showToast("Failed to load more recipes.", "error");
+    } finally {
+      isLoadingMore = false;
     }
   };
 
@@ -252,8 +273,8 @@
 </svelte:head>
 
 <section class="page">
-  <h1>Recipe Planner</h1>
-
+  <h1 class="heading">Recipe Planner</h1>
+  <h4 class="subheading">Discover, organize, and plan your favorite recipes with ease.</h4>
   {#if isLoading}
     <p class="loading">Loading recipes...</p>
   {:else if error}
@@ -353,8 +374,22 @@
   .page {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 32px 20px 80px;
+    padding: 20px 20px 40px;
     color: #1f2937;
+  }
+
+  .heading {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+
+  .subheading {
+    font-size: 0.9rem;
+    color: #4b5563;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
   }
 
   .filter-container {
@@ -395,7 +430,11 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 0.95rem;
-    background: #fff;
+  }
+
+  .filters input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
   }
 
   .filters select:disabled {

@@ -18,10 +18,9 @@
       userId = getUserId();
       const id = page.params.id;
       recipe = await fetchRecipeById(id, userId);
-      categoryOptions = await fetchCategoryOptions();
+      categoryOptions = await fetchCategoryOptions(userId);
       if (!recipe) error = 'Recipe not found';
     } catch (e) {
-      console.error(e);
       error = 'Failed to load recipe';
     } finally {
       loading = false;
@@ -41,7 +40,6 @@
       showToast('Recipe updated successfully!', 'success');
       goto('/my-recipes');
     } catch (err) {
-      console.error('Update error', err);
       showToast('Failed to update recipe.', 'error');
     }
   }
