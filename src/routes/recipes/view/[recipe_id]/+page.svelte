@@ -1,13 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { onMount } from "svelte";
-  import { fetchCategoryOptions, fetchRecipeById, type Recipe } from "$lib/api";
-  import { getPlaceholderUrl } from "$lib/helpers/utils";
+  import { fetchRecipeById, type Recipe } from "$lib/api";
+  import { getPlaceholderUrl, showToast } from "$lib/helpers/utils";
 
   let recipe = $state<Recipe | null>(null);
-  let categoryOptions = $state<
-    Array<{ id: string; name: string; parent_id: string | null }>
-  >([]);
   let loading = $state(true);
   let error = $state("");
 
@@ -22,7 +19,6 @@
     error = "";
 
     try {
-      categoryOptions = await fetchCategoryOptions();
       const recipeId = page.params.recipe_id;
       recipe = await fetchRecipeById(recipeId);
 
@@ -30,10 +26,12 @@
         error = "Recipe not found.";
       }
     } catch (e) {
-      console.error("[RecipeViewPage] load error:", e);
       error = "Unable to load recipe.";
     } finally {
       loading = false;
+      if (error) {
+        showToast(error, "error");
+      }
     }
   }
 

@@ -59,7 +59,6 @@
       recipeToDelete = null;
       showToast("Recipe deleted successfully!", "success");
     } catch (e) {
-      console.error("[Page] Delete error:", e);
       showToast("Failed to delete recipe.", "error");
     }
   }
@@ -185,7 +184,6 @@
       error = "";
       await Promise.all([loadRecipes(), loadFavorites(), loadCategories()]);
     } catch (e) {
-      console.error("[Page] loadAll() error:", e);
       showToast("Failed to load application data.", "error");
       error =
         e instanceof Error ? e.message : "Failed to load application data";
@@ -195,49 +193,72 @@
   }
 
   async function loadRecipes() {
-    currentPage = 1;
-    const { recipes: fetchedRecipes, count } = await fetchRecipes(
-      searchTerm,
-      selectedCategory,
-      selectedSubcategory,
-      userId,
-    );
-    recipes = fetchedRecipes;
-    if (recipes.length) {
-      selectedRecipe = recipes[0];
-      hasMore = recipes.length < count;
-    } else {
+    try {
+      currentPage = 1;
+      const { recipes: fetchedRecipes, count } = await fetchRecipes(
+        searchTerm,
+        selectedCategory,
+        selectedSubcategory,
+        userId,
+      );
+      recipes = fetchedRecipes;
+      if (recipes.length) {
+        selectedRecipe = recipes[0];
+        hasMore = recipes.length < count;
+      } else {
+        hasMore = false;
+      }
+      totalRecipes = count;
+    } catch (e) {
+      showToast("Failed to load recipes.", "error");
+      recipes = [];
+      selectedRecipe = null;
       hasMore = false;
+      totalRecipes = 0;
     }
-    totalRecipes = count;
   }
 
   async function loadFavorites() {
-    const favs = await fetchFavorites(userId);
-    favorites = new Set(favs.map((r) => r.id));
+    try {
+      const favs = await fetchFavorites(userId);
+      favorites = new Set(favs.map((r) => r.id));
+    } catch (e) {
+      showToast("Failed to load favorites.", "error");
+      favorites = new Set();
+    }
   }
 
   async function loadCategories() {
-    const fetchedCategories = await fetchCategoryOptions();
-    categoryOptions = fetchedCategories;
+    try {
+      const fetchedCategories = await fetchCategoryOptions(userId);
+      categoryOptions = fetchedCategories;
+    } catch (e) {
+      showToast("Failed to load categories.", "error");
+      categoryOptions = [];
+    }
   }
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return; // No more recipes to load
     isLoadingMore = true;
-    const nextPage = currentPage + 1;
-    const newRecipes = await fetchRecipes(
-      searchTerm,
-      selectedCategory,
-      selectedSubcategory,
-      userId,
-      nextPage,
-    );
-    recipes = [...recipes, ...newRecipes.recipes];
-    isLoadingMore = false;
-    currentPage = nextPage;
-    if (newRecipes.recipes.length < pageSize) {
-      hasMore = false;
+    try {
+      const nextPage = currentPage + 1;
+      const newRecipes = await fetchRecipes(
+        searchTerm,
+        selectedCategory,
+        selectedSubcategory,
+        userId,
+        nextPage,
+      );
+      recipes = [...recipes, ...newRecipes.recipes];
+      currentPage = nextPage;
+      if (newRecipes.recipes.length < pageSize) {
+        hasMore = false;
+      }
+    } catch (e) {
+      showToast("Failed to load more recipes.", "error");
+    } finally {
+      isLoadingMore = false;
     }
   };
 

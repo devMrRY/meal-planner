@@ -112,7 +112,7 @@
         image: r.image || "",
       }));
     } catch (err) {
-      console.error("Failed to fetch recipes", err);
+      showToast("Unable to load recipes. Please try again.", "error");
     } finally {
       loadingRecipes = false;
     }
@@ -220,7 +220,6 @@
       }
       handleModalClose();
     } catch (error) {
-      console.error("Failed to save meal plan:", error);
       showToast("Unable to save meal plan. Please try again.", "error");
     }
   }
@@ -268,7 +267,6 @@
       mealPlans = mealPlans.filter((meal) => meal.id !== mealId);
       showToast("Meal removed.", "success");
     } catch (err) {
-      console.error("Failed to delete recipe", err);
       showToast("Unable to delete meal.", "error");
     } finally {
       deleteTarget = null;
@@ -319,7 +317,6 @@
           clearTarget = null;
         })
         .catch((err) => {
-          console.error("Failed to clear meals for date", err);
           showToast("Unable to clear meals for this day.", "error");
           clearTarget = null;
         });
@@ -335,7 +332,6 @@
         clearTarget = null;
       })
       .catch((err) => {
-        console.error("Failed to clear meals for the week", err);
         showToast("Unable to clear the week.", "error");
       });
   }
