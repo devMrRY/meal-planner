@@ -206,10 +206,10 @@
     if (recipes.length) {
       selectedRecipe = recipes[0];
       hasMore = recipes.length < count;
-      totalRecipes = count;
     } else {
       hasMore = false;
     }
+    totalRecipes = count;
   }
 
   async function loadFavorites() {
@@ -252,8 +252,8 @@
 </svelte:head>
 
 <section class="page">
-  <h1>Recipe Planner</h1>
-
+  <h1 class="heading">Recipe Planner</h1>
+  <h4 class="subheading">Discover, organize, and plan your favorite recipes with ease.</h4>
   {#if isLoading}
     <p class="loading">Loading recipes...</p>
   {:else if error}
@@ -353,8 +353,22 @@
   .page {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 32px 20px 80px;
+    padding: 20px 20px 40px;
     color: #1f2937;
+  }
+
+  .heading {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+
+  .subheading {
+    font-size: 0.9rem;
+    color: #4b5563;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
   }
 
   .filter-container {
@@ -395,7 +409,11 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 0.95rem;
-    background: #fff;
+  }
+
+  .filters input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
   }
 
   .filters select:disabled {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "../app.css";
   import { page } from "$app/state";
   import { onMount } from "svelte";
   import { getUserId } from "$lib/helpers/utils";

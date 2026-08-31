@@ -114,7 +114,7 @@
   .page {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 32px 20px 80px;
+    padding: 20px 20px 40px;
   }
 
   .status {
@@ -200,14 +200,16 @@
   }
 
   .back-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.7rem 1rem;
-    background: #111827;
-    color: #fff;
-    border-radius: 10px;
+    background: #fff;
     text-decoration: none;
+    color: #78716c;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
     font-weight: 600;
+  }
+
+  .back-link:hover {
+    box-shadow: 0 2px 4px rgb(15 23 42 / 12%);
   }
 </style>
